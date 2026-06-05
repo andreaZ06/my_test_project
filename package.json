@@ -4,6 +4,7 @@
   "private": true,
   "description": "Maifudi dog food JD review dashboard MVP with a local Node backend.",
   "scripts": {
+    "build": "node scripts/build-static.js",
     "start": "node backend/server.js"
   },
   "engines": {
