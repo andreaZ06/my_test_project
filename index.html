@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>麦富迪狗粮类产品评论看板</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <div class="brand-mark">M</div>
+          <div>
+            <strong>麦富迪评论雷达</strong>
+          </div>
+        </div>
+        <label class="sidebar-search">
+          <span>Search</span>
+          <input type="search" placeholder="搜索 SKU / 关键词" aria-label="侧栏搜索" />
+        </label>
+        <p class="side-section">MAIN</p>
+        <nav class="nav-list">
+          <button class="nav-item active" type="button" data-view="overview" title="总览">总览</button>
+          <button class="nav-item" type="button" data-view="sku" title="SKU详情">SKU详情</button>
+          <button class="nav-item" type="button" data-view="keyword" title="关键词详情">关键词</button>
+          <button class="nav-item" type="button" data-view="alerts" title="预警中心">预警</button>
+          <button class="nav-item" type="button" data-view="settings" title="配置">配置</button>
+        </nav>
+        <p class="side-section">INBOXES</p>
+        <div class="side-inbox">
+          <span class="inbox-dot purple"></span>
+          <div><strong>品牌运营</strong><em>麦富迪旗舰组</em></div>
+        </div>
+        <div class="side-inbox">
+          <span class="inbox-dot green"></span>
+          <div><strong>风险监控</strong><em>每日 09:00 同步</em></div>
+        </div>
+        <section class="feishu-card">
+          <span class="mini-label">飞书机器人</span>
+          <strong id="feishuStatus">已接入模拟通道</strong>
+          <button class="secondary-button compact" type="button" id="openFeishu">查询测试</button>
+        </section>
+      </aside>
+
+      <section class="content-shell">
+        <header class="topbar">
+          <div>
+            <h1>麦富迪狗粮类产品评论看板</h1>
+          </div>
+          <div class="top-actions">
+            <span class="sync-pill" id="syncStatus">待同步</span>
+            <button class="primary-button" type="button" id="syncButton">今日同步</button>
+            <button class="secondary-button" type="button">Export</button>
+          </div>
+        </header>
+
+        <section class="toolbar">
+          <label class="field">
+            <span>监控 SKU</span>
+            <select id="skuFilter"></select>
+          </label>
+          <label class="field">
+            <span>评分类型</span>
+            <select id="ratingFilter">
+              <option value="all">全部评论</option>
+              <option value="good">好评</option>
+              <option value="neutral">中评</option>
+              <option value="bad">差评</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>时间范围</span>
+            <select id="rangeFilter">
+              <option value="1">近 1 天</option>
+              <option value="7" selected>近 7 天</option>
+              <option value="30">近 30 天</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>关键词搜索</span>
+            <input id="keywordSearch" type="search" placeholder="例如 拉稀 / 不吃 / 包装破损" />
+          </label>
+        </section>
+
+        <section class="view active" id="overviewView">
+          <section class="analytics-board">
+            <article class="panel total-overview">
+              <div class="panel-heading">
+                <div>
+                  <h2>Total overview</h2>
+                  <span class="hint">近 7 天品牌运营评论风险概览</span>
+                </div>
+                <span class="good-chip">+24%</span>
+              </div>
+              <section class="metric-grid" id="metricGrid"></section>
+            </article>
+            <article class="panel weekly-overview">
+              <div class="panel-heading">
+                <div>
+                  <h2>Weekly trend</h2>
+                  <span class="hint">全部评论与差评量对比</span>
+                </div>
+                <select aria-label="周视图">
+                  <option>Weekly</option>
+                </select>
+              </div>
+              <div class="trend-chart" id="reviewTrend"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Messages</h2>
+                  <span class="hint">全部评论高频词 · 近 7 天</span>
+                </div>
+              </div>
+              <div class="keyword-list" id="overallKeywords"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Risk calls</h2>
+                  <span class="hint">差评关键词 · 运营优先关注</span>
+                </div>
+              </div>
+              <div class="keyword-list" id="badKeywords"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Top conversations</h2>
+                  <span class="hint" id="latestAlertCount">0 条</span>
+                </div>
+              </div>
+              <div class="alert-list compact-list" id="latestAlerts"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Risk SKU</h2>
+                  <span class="hint">按高风险词和差评占比排序</span>
+                </div>
+              </div>
+              <div class="rank-list" id="riskSkuRank"></div>
+            </article>
+          </section>
+        </section>
+
+        <section class="view" id="skuView">
+          <section class="dashboard-grid">
+            <article class="panel span-2">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="skuDetailTitle">SKU 详情</h2>
+                  <span class="hint" id="skuDetailHint">评论结构、关键词与趋势</span>
+                </div>
+                <a class="link-button" id="skuJdLink" href="#" target="_blank" rel="noreferrer">京东评论入口</a>
+              </div>
+              <div class="detail-grid" id="skuDetailCards"></div>
+              <div class="subsection-title">关键词环比变化</div>
+              <div class="keyword-table" id="skuKeywordTable"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>评分分布</h2>
+                  <span class="hint">近选定周期</span>
+                </div>
+              </div>
+              <div class="rating-bars" id="ratingBars"></div>
+            </article>
+            <article class="panel span-3">
+              <div class="panel-heading">
+                <div>
+                  <h2>原始评论样本</h2>
+                  <span class="hint">保留证据链</span>
+                </div>
+              </div>
+              <div class="review-list" id="skuReviewSamples"></div>
+            </article>
+          </section>
+        </section>
+
+        <section class="view" id="keywordView">
+          <section class="dashboard-grid">
+            <article class="panel span-2">
+              <div class="panel-heading">
+                <div>
+                  <h2 id="keywordTitle">关键词详情</h2>
+                  <span class="hint">词频、环比、评分分布</span>
+                </div>
+              </div>
+              <div class="detail-grid" id="keywordDetailCards"></div>
+              <div class="subsection-title">跨 SKU 词频</div>
+              <div class="keyword-table" id="keywordSkuTable"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>选择关键词</h2>
+                  <span class="hint">点击进入证据链</span>
+                </div>
+              </div>
+              <div class="keyword-list" id="keywordPicker"></div>
+            </article>
+            <article class="panel span-3">
+              <div class="panel-heading">
+                <div>
+                  <h2>关联评论证据链</h2>
+                  <span class="hint" id="keywordEvidenceHint">按时间倒序</span>
+                </div>
+              </div>
+              <div class="jump-context" id="keywordJumpContext" hidden></div>
+              <div class="review-list" id="keywordEvidence"></div>
+            </article>
+          </section>
+        </section>
+
+        <section class="view" id="alertsView">
+          <section class="dashboard-grid">
+            <article class="panel span-3">
+              <div class="panel-heading">
+                <div>
+                  <h2>预警中心</h2>
+                  <span class="hint">近 7 天 vs 前 7 天环比异常上涨</span>
+                </div>
+                <div class="inline-actions">
+                  <select id="alertLevelFilter" aria-label="筛选风险等级">
+                    <option value="all">全部等级</option>
+                    <option value="high">高风险</option>
+                    <option value="medium">中风险</option>
+                    <option value="low">低风险</option>
+                  </select>
+                  <select id="alertStatusFilter" aria-label="筛选处理状态">
+                    <option value="all">全部状态</option>
+                    <option value="unread">未查看</option>
+                    <option value="read">已查看</option>
+                  </select>
+                </div>
+              </div>
+              <div class="alert-list" id="alertCenterList"></div>
+            </article>
+          </section>
+        </section>
+
+        <section class="view" id="settingsView">
+          <section class="dashboard-grid">
+            <article class="panel span-2">
+              <div class="panel-heading">
+                <div>
+                  <h2>SKU 配置</h2>
+                  <span class="hint">可新增、编辑、停用和删除</span>
+                </div>
+              </div>
+              <form class="form-grid" id="skuForm">
+                <input type="hidden" id="editingSkuId" />
+                <label class="field"><span>商品名称</span><input id="skuName" required placeholder="麦富迪 牛肉双拼全价狗粮 10kg" /></label>
+                <label class="field"><span>京东 SKU ID</span><input id="jdSkuId" required placeholder="100000000000" /></label>
+                <label class="field"><span>品类/系列</span><input id="skuSeries" required placeholder="成犬粮 / 幼犬粮 / 双拼粮" /></label>
+                <label class="field"><span>京东链接</span><input id="jdUrl" required type="url" placeholder="https://item.jd.com/..." /></label>
+                <button class="primary-button" type="submit">保存 SKU</button>
+                <button class="secondary-button" type="button" id="resetSkuForm">清空</button>
+              </form>
+              <div class="sku-config-list" id="skuConfigList"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>预警规则</h2>
+                  <span class="hint">默认可解释规则</span>
+                </div>
+              </div>
+              <form class="rule-form" id="ruleForm">
+                <label class="field"><span>低风险涨幅</span><input id="lowGrowth" type="number" min="1" step="1" /></label>
+                <label class="field"><span>中风险涨幅</span><input id="mediumGrowth" type="number" min="1" step="1" /></label>
+                <label class="field"><span>高风险涨幅</span><input id="highGrowth" type="number" min="1" step="1" /></label>
+                <label class="field"><span>最低样本量</span><input id="minCount" type="number" min="1" step="1" /></label>
+                <label class="field"><span>飞书 Webhook</span><input id="feishuWebhook" type="url" placeholder="https://open.feishu.cn/open-apis/bot/..." /></label>
+                <button class="primary-button" type="submit">保存规则</button>
+              </form>
+              <div class="subsection-title">高敏词库</div>
+              <form class="inline-form" id="sensitiveForm">
+                <input id="sensitiveInput" placeholder="新增高敏词" />
+                <button class="secondary-button" type="submit">添加</button>
+              </form>
+              <div class="tag-list" id="sensitiveList"></div>
+            </article>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <section class="drawer" id="feishuDrawer" aria-label="飞书机器人查询模拟">
+      <div class="drawer-backdrop" id="closeFeishu"></div>
+      <aside class="drawer-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>飞书机器人查询</h2>
+            <span class="hint">固定指令 + 少量自然语言容错</span>
+          </div>
+          <button class="icon-button" type="button" id="closeFeishuButton" title="关闭">×</button>
+        </div>
+        <div class="command-examples">
+          <button type="button" data-command="查询 麦富迪 近7天 关键词">查询 麦富迪 近7天 关键词</button>
+          <button type="button" data-command="查询 今日预警">查询 今日预警</button>
+          <button type="button" data-command="查询 高风险关键词">查询 高风险关键词</button>
+          <button type="button" data-command="查询 牛肉双拼 近7天 差评关键词">查询 牛肉双拼 近7天 差评关键词</button>
+        </div>
+        <form class="feishu-query" id="feishuQueryForm">
+          <input id="feishuQuery" placeholder="输入飞书查询指令" />
+          <button class="primary-button" type="submit">发送</button>
+        </form>
+        <div class="feishu-result" id="feishuResult"></div>
+      </aside>
+    </section>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
