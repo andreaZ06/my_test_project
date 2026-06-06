@@ -80,13 +80,16 @@ function normalizeJdComment({ sku, comment, bucket, page, index, productId }) {
     id: `jd-${sku.id}-${reviewId}`,
     sourceReviewId: reviewId,
     skuId: sku.id,
+    skuName: sku.name,
     content,
     ratingType: bucket.ratingType,
     date: normalizeDate(comment.creationTime || comment.referenceTime),
     crawledAt: formatDate(new Date()),
     user: maskUser(comment.nickname || comment.userNickname || "京东用户"),
     keywords: extractKeywords(content),
-    reviewUrl: buildReviewUrl(sku.url, reviewId),
+    productUrl: buildProductUrl(sku.url),
+    reviewUrl: buildReviewUrl(sku.url),
+    reviewAnchorId: reviewId,
     source: "jd-realtime",
   };
 }
@@ -133,9 +136,11 @@ async function analyzeBadReviewsWithDeepSeek({ reviews, apiKey, model }) {
     "不要输出 Markdown。",
     JSON.stringify(reviews.slice(0, 80).map((review) => ({
       skuId: review.skuId,
+      skuName: review.skuName,
       date: review.date,
       content: review.content,
       keywords: review.keywords,
+      productUrl: review.productUrl,
       reviewUrl: review.reviewUrl,
     }))),
   ].join("\n");
@@ -177,10 +182,13 @@ function normalizeDeepSeekAnalysis(parsed, fallback, reviews) {
 
       return {
         keyword: point.keyword || matchedReview?.keywords?.[0] || "差评风险",
+        skuId: matchedReview?.skuId || point.skuId || "",
         risk_level: String(point.risk_level || "medium").toLowerCase(),
         reason: point.reason || "差评中出现相关问题描述",
         evidence: point.evidence || matchedReview?.content || "",
-        reviewUrl: point.reviewUrl || matchedReview?.reviewUrl || "",
+        skuName: point.skuName || matchedReview?.skuName || "",
+        productUrl: matchedReview?.productUrl || normalizeProductUrl(point.productUrl || point.reviewUrl || ""),
+        reviewUrl: normalizeReviewUrl(point.reviewUrl, matchedReview),
         suggestion: point.suggestion || "建议运营先核对原始评论，再联动客服或品控跟进。",
       };
     }) : fallback.risk_points,
@@ -200,9 +208,12 @@ function localBadReviewAnalysis(reviews) {
     return {
       keyword,
       count,
+      skuId: sourceReview?.skuId || "",
       risk_level: sensitiveKeywords.includes(keyword) ? "high" : "medium",
       reason: `差评中出现 ${count} 次`,
       evidence: sourceReview?.content || "",
+      skuName: sourceReview?.skuName || "",
+      productUrl: sourceReview?.productUrl || "",
       reviewUrl: sourceReview?.reviewUrl || "",
       suggestion: "建议运营先核对原始评论证据，再联动客服、品控或物流侧排查。",
     };
@@ -252,13 +263,16 @@ function generateFallbackReviews(skus, pageSize) {
           id: `jd-${sku.id}-${reviewId}`,
           sourceReviewId: reviewId,
           skuId: sku.id,
+          skuName: sku.name,
           content,
           ratingType,
           date: formatDate(date),
           crawledAt: formatDate(today),
           user: `京***${index + 1}`,
           keywords: extractKeywords(content),
-          reviewUrl: buildReviewUrl(sku.url, reviewId),
+          productUrl: buildProductUrl(sku.url),
+          reviewUrl: buildReviewUrl(sku.url),
+          reviewAnchorId: reviewId,
           source: "jd-fallback",
         });
       }
@@ -322,9 +336,28 @@ function maskUser(value) {
   return `${text.slice(0, 1)}***${text.slice(-1)}`;
 }
 
-function buildReviewUrl(productUrl, reviewId) {
+function buildProductUrl(productUrl) {
   const base = productUrl || "https://www.jd.com/";
-  return `${base.split("#")[0]}#comment-${encodeURIComponent(reviewId)}`;
+  return base.split("#")[0];
+}
+
+function buildReviewUrl(productUrl) {
+  return `${buildProductUrl(productUrl)}#comment`;
+}
+
+function normalizeProductUrl(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  return text.split("#")[0];
+}
+
+function normalizeReviewUrl(value, fallbackReview) {
+  const fallbackUrl = fallbackReview?.reviewUrl || (fallbackReview?.productUrl ? `${fallbackReview.productUrl}#comment` : "");
+  const text = String(value || "").trim();
+  if (!text) return fallbackUrl;
+  if (text.includes("fallback-") || text.includes("#comment-")) return fallbackUrl;
+  if (text.includes("item.jd.com") && !text.includes("#comment")) return `${text.split("#")[0]}#comment`;
+  return text;
 }
 
 function extractSkuId(url) {
