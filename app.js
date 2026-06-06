@@ -355,7 +355,7 @@ function renderReviews(reviews, highlightKeyword = "", targetReviewId = "") {
     const sku = findSku(review.skuId);
     const content = highlightKeyword ? highlight(review.content, highlightKeyword) : escapeHtml(review.content);
     const isTarget = targetReviewId && review.id === targetReviewId;
-    const link = review.reviewUrl || `${sku?.url || "#"}#comment`;
+    const link = externalReviewUrl(review, sku);
     return `
       <article class="review-item ${isTarget ? "evidence-focus" : ""}" id="review-${escapeAttr(review.id)}">
         <p>${content}</p>
@@ -401,8 +401,9 @@ function renderDeepSeekAnalysis() {
           </div>
           <p>${escapeHtml(point.evidence || "暂无证据片段")}</p>
           <div class="alert-meta">
+            ${point.skuName ? `<span class="chip">${escapeHtml(shortSkuName(point.skuName))}</span>` : ""}
             <span class="chip">${escapeHtml(point.suggestion || "建议先核对评论证据")}</span>
-            ${point.reviewUrl ? `<a class="link-button" href="${escapeAttr(point.reviewUrl)}" target="_blank" rel="noreferrer">打开差评链接</a>` : ""}
+            ${externalReviewUrl(point, findSku(point.skuId)) ? `<a class="link-button" href="${escapeAttr(externalReviewUrl(point, findSku(point.skuId)))}" target="_blank" rel="noreferrer">打开商品评论区</a>` : ""}
           </div>
         </article>
       `).join("") : '<div class="empty-state">本次没有形成明确风险点。</div>'}
@@ -814,6 +815,15 @@ function getSelectedSku() {
 
 function findSku(id) {
   return state.skus.find((sku) => sku.id === id);
+}
+
+function externalReviewUrl(item, sku) {
+  const raw = String(item?.reviewUrl || item?.productUrl || sku?.url || "").trim();
+  if (!raw || raw === "#") return "";
+  const base = raw.split("#")[0];
+  if (!base) return "";
+  if (raw.includes("fallback-") || raw.includes("#comment-")) return `${base}#comment`;
+  return raw.includes("#comment") ? raw : `${base}#comment`;
 }
 
 function getDates(days) {
