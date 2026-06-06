@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
+const { realtimeSync } = require("./jd-realtime");
 
 loadEnv();
 
@@ -66,6 +67,28 @@ async function routeApi(req, res, url) {
     store.updatedAt = new Date().toISOString();
     writeStore(store);
     sendJson(res, 200, { ok: true, reviewCount: store.reviews.length, updatedAt: store.updatedAt });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/reviews/realtime-sync") {
+    const store = readStore();
+    const body = await readJson(req);
+    const skus = Array.isArray(body.skus) && body.skus.length ? body.skus : store.skus;
+    const result = await realtimeSync({
+      skus,
+      pagesPerRating: Number(body.pagesPerRating || 1),
+      pageSize: Number(body.pageSize || 10),
+      deepseekApiKey: process.env.DEEPSEEK_API_KEY,
+      deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+    });
+    if (result.reviews.length) {
+      const byId = new Map(store.reviews.map((review) => [review.id, review]));
+      result.reviews.forEach((review) => byId.set(review.id, review));
+      store.reviews = [...byId.values()];
+      store.updatedAt = result.fetchedAt;
+      writeStore(store);
+    }
+    sendJson(res, 200, result);
     return;
   }
 

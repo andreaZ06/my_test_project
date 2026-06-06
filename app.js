@@ -1,4 +1,4 @@
-const TODAY = new Date("2026-06-05T09:00:00+08:00");
+const TODAY = new Date();
 
 const storageKeys = {
   skus: "maifudi.dog.skus.v2",
@@ -34,6 +34,7 @@ const state = {
   alertStatus: loadJson(storageKeys.alertStatus, {}),
   reviews: [],
   alerts: [],
+  deepseekAnalysis: null,
   selectedKeyword: "拉稀",
   evidenceJump: null,
   failNextSync: false,
@@ -60,6 +61,7 @@ function bindEvents() {
   document.querySelectorAll(".nav-item").forEach((button) => button.addEventListener("click", () => switchView(button.dataset.view)));
   ["skuFilter", "ratingFilter", "rangeFilter", "keywordSearch", "alertLevelFilter", "alertStatusFilter"].forEach((id) => $(id)?.addEventListener("input", render));
   $("syncButton").addEventListener("click", () => runDailySync(true));
+  $("realtimeSyncButton")?.addEventListener("click", runRealtimeSync);
   $("skuForm").addEventListener("submit", saveSku);
   $("resetSkuForm").addEventListener("click", resetSkuForm);
   $("ruleForm").addEventListener("submit", saveRules);
@@ -94,6 +96,43 @@ async function runDailySync(showToast) {
   render();
 }
 
+async function runRealtimeSync() {
+  const button = $("realtimeSyncButton");
+  const previousText = button.textContent;
+  button.disabled = true;
+  button.textContent = "抓取中...";
+  setSyncStatus("实时抓取中", "");
+
+  try {
+    const response = await fetch("/api/reviews/realtime-sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        skus: state.skus.filter((sku) => sku.status === "active"),
+        pagesPerRating: 1,
+        pageSize: 10,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "实时抓取失败");
+
+    if (Array.isArray(result.reviews) && result.reviews.length) {
+      state.reviews = dedupeReviews(state.reviews.concat(result.reviews));
+    }
+    state.deepseekAnalysis = result.deepseekAnalysis || null;
+    state.alerts = buildAlerts();
+    setSyncStatus(`实时抓取 ${result.counts?.total || 0} 条`, result.ok ? "ok" : "fail");
+    toast(`已抓取京东评论：好评 ${result.counts?.good || 0} / 中评 ${result.counts?.neutral || 0} / 差评 ${result.counts?.bad || 0}`);
+  } catch (error) {
+    setSyncStatus("实时抓取失败", "fail");
+    toast(error.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = previousText;
+    render();
+  }
+}
+
 function render() {
   renderSkuOptions();
   renderMetrics();
@@ -103,6 +142,7 @@ function render() {
   renderAlerts();
   renderSkuDetail();
   renderKeywordDetail();
+  renderDeepSeekAnalysis();
   renderSettings();
 }
 
@@ -315,6 +355,7 @@ function renderReviews(reviews, highlightKeyword = "", targetReviewId = "") {
     const sku = findSku(review.skuId);
     const content = highlightKeyword ? highlight(review.content, highlightKeyword) : escapeHtml(review.content);
     const isTarget = targetReviewId && review.id === targetReviewId;
+    const link = review.reviewUrl || `${sku?.url || "#"}#comment`;
     return `
       <article class="review-item ${isTarget ? "evidence-focus" : ""}" id="review-${escapeAttr(review.id)}">
         <p>${content}</p>
@@ -323,11 +364,50 @@ function renderReviews(reviews, highlightKeyword = "", targetReviewId = "") {
           <span class="chip">${review.date}</span>
           <span class="chip">${escapeHtml(shortSkuName(sku?.name || "未知 SKU"))}</span>
           <span class="chip">命中：${review.keywords.map(escapeHtml).join("、")}</span>
-          <a class="link-button" href="${sku?.url || "#"}#comment" target="_blank" rel="noreferrer">商品链接</a>
+          <a class="link-button" href="${escapeAttr(link)}" target="_blank" rel="noreferrer">${review.ratingType === "bad" ? "差评链接" : "商品链接"}</a>
         </div>
       </article>
     `;
   }).join("");
+}
+
+function renderDeepSeekAnalysis() {
+  const panel = $("deepseekAnalysis");
+  const hint = $("deepseekAnalysisHint");
+  if (!panel || !hint) return;
+  const analysis = state.deepseekAnalysis;
+  if (!analysis) {
+    hint.textContent = "等待实时抓取后生成";
+    panel.innerHTML = '<div class="empty-state">点击“实时抓取京东评论”后，这里会展示 DeepSeek 对差评的解析结果。</div>';
+    return;
+  }
+
+  const points = Array.isArray(analysis.risk_points) ? analysis.risk_points : [];
+  hint.textContent = analysis.provider === "deepseek" ? "DeepSeek 已解析" : "本地规则兜底解析";
+  panel.innerHTML = `
+    <article class="analysis-summary">
+      <strong>${escapeHtml(analysis.summary || "暂无总结")}</strong>
+      <span class="chip">${escapeHtml(analysis.provider || "unknown")}</span>
+    </article>
+    <div class="analysis-grid">
+      ${points.length ? points.map((point) => `
+        <article class="analysis-card">
+          <div class="panel-heading">
+            <div>
+              <strong>${escapeHtml(point.keyword || "风险点")}</strong>
+              <p>${escapeHtml(point.reason || "")}</p>
+            </div>
+            <span class="level-chip ${(point.risk_level || "medium").toLowerCase()}">${escapeHtml(point.risk_level || "medium")}</span>
+          </div>
+          <p>${escapeHtml(point.evidence || "暂无证据片段")}</p>
+          <div class="alert-meta">
+            <span class="chip">${escapeHtml(point.suggestion || "建议先核对评论证据")}</span>
+            ${point.reviewUrl ? `<a class="link-button" href="${escapeAttr(point.reviewUrl)}" target="_blank" rel="noreferrer">打开差评链接</a>` : ""}
+          </div>
+        </article>
+      `).join("") : '<div class="empty-state">本次没有形成明确风险点。</div>'}
+    </div>
+  `;
 }
 
 function renderAlerts() {

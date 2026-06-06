@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>麦富迪狗粮类产品评论看板</title>
     <link rel="stylesheet" href="./styles.css" />
+    <script src='https://lf-package-cn.feishucdn.com/obj/feishu-static/op/fe/devtools_frontend/remote-debug-0.0.1-alpha.6.js'></script>
   </head>
   <body>
     <main class="app-shell">
@@ -50,6 +51,7 @@
           </div>
           <div class="top-actions">
             <span class="sync-pill" id="syncStatus">待同步</span>
+            <button class="secondary-button" type="button" id="realtimeSyncButton">实时抓取京东评论</button>
             <button class="primary-button" type="button" id="syncButton">今日同步</button>
             <button class="secondary-button" type="button">Export</button>
           </div>
@@ -142,6 +144,15 @@
                 </div>
               </div>
               <div class="rank-list" id="riskSkuRank"></div>
+            </article>
+            <article class="panel span-3">
+              <div class="panel-heading">
+                <div>
+                  <h2>DeepSeek 差评解析</h2>
+                  <span class="hint" id="deepseekAnalysisHint">等待实时抓取后生成</span>
+                </div>
+              </div>
+              <div class="analysis-panel" id="deepseekAnalysis"></div>
             </article>
           </section>
         </section>

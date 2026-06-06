@@ -550,6 +550,36 @@ input:focus, select:focus {
   100% { box-shadow: 0 0 0 3px rgba(240, 195, 78, 0.2); }
 }
 
+.analysis-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.analysis-summary, .analysis-card {
+  border: 1px solid #d8e4f5;
+  border-radius: 10px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.analysis-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.analysis-card p {
+  margin-bottom: 8px;
+  color: var(--muted);
+}
+
 .form-grid, .rule-form {
   display: grid;
   gap: 12px;
