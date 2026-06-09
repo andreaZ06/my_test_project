@@ -48,10 +48,15 @@ server.listen(PORT, () => {
 
 async function routeApi(req, res, url) {
   if (req.method === "GET" && url.pathname === "/api/health") {
+    const store = readStore();
     sendJson(res, 200, {
       ok: true,
       deepseekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
       feishuWebhookConfigured: Boolean(process.env.FEISHU_WEBHOOK_URL),
+      storageMode: storeData.getStorageMode(),
+      supabaseConfigured: storeData.isSupabaseConfigured(),
+      updatedAt: store.updatedAt,
+      skuCount: Array.isArray(store.skus) ? store.skus.length : 0,
     });
     return;
   }

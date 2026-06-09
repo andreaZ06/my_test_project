@@ -39,6 +39,14 @@ const keywordLexicon = ["拉稀", "软便", "呕吐", "过敏", "假货", "变�
 const state = {
   skus: defaultSkus.slice(),
   skusSource: "fallback",
+  storageHealth: {
+    ok: null,
+    storageMode: "unknown",
+    supabaseConfigured: false,
+    updatedAt: "",
+    skuCount: 0,
+    error: "",
+  },
   rules: loadJson(storageKeys.rules, defaultRules),
   sensitive: loadJson(storageKeys.sensitive, defaultSensitive),
   alertStatus: loadJson(storageKeys.alertStatus, {}),
@@ -55,6 +63,7 @@ const state = {
 document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
   await loadSkusFromBackend();
+  await loadStorageHealth();
   await loadKnowledgeBase();
   syncRuleForm();
   await runDailySync(false);
@@ -104,6 +113,32 @@ async function loadSkusFromBackend() {
     state.skus = defaultSkus.slice();
     state.skusSource = "fallback";
     toast(error.message);
+  }
+  render();
+}
+
+async function loadStorageHealth() {
+  try {
+    const response = await fetch(apiUrl("/api/health"), { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "加载存储状态失败");
+    state.storageHealth = {
+      ok: Boolean(payload.ok),
+      storageMode: payload.storageMode || "unknown",
+      supabaseConfigured: Boolean(payload.supabaseConfigured),
+      updatedAt: payload.updatedAt || "",
+      skuCount: Number(payload.skuCount || 0),
+      error: "",
+    };
+  } catch (error) {
+    state.storageHealth = {
+      ok: false,
+      storageMode: "unknown",
+      supabaseConfigured: false,
+      updatedAt: "",
+      skuCount: 0,
+      error: error.message || "加载存储状态失败",
+    };
   }
   render();
 }
@@ -553,6 +588,7 @@ function renderAlertItems(alerts) {
 }
 
 function renderSettings() {
+  renderStorageStatus();
   $("skuConfigList").innerHTML = state.skus.map((sku) => `
     <article class="sku-config-row">
       <div>
@@ -574,6 +610,28 @@ function renderSettings() {
     <span class="tag-pill">${escapeHtml(word)} <button type="button" title="删除" onclick="removeSensitive('${escapeAttr(word)}')">×</button></span>
   `).join("");
   renderKnowledgeSettings();
+}
+
+function renderStorageStatus() {
+  if (!$("skuStorageStatus")) return;
+  const health = state.storageHealth || {};
+  if (health.ok === null) {
+    $("skuStorageStatus").textContent = "正在检查存储状态...";
+    $("skuStorageStatus").className = "status-note";
+    return;
+  }
+  if (health.ok && health.storageMode === "supabase") {
+    $("skuStorageStatus").textContent = `已连接 Supabase，当前 ${health.skuCount} 个 SKU`;
+    $("skuStorageStatus").className = "status-note good";
+    return;
+  }
+  if (health.ok && health.storageMode === "local") {
+    $("skuStorageStatus").textContent = "当前使用本地临时存储，刷新后可能回退";
+    $("skuStorageStatus").className = "status-note warn";
+    return;
+  }
+  $("skuStorageStatus").textContent = health.error || "存储状态未知";
+  $("skuStorageStatus").className = "status-note warn";
 }
 
 function renderKnowledgeSettings() {

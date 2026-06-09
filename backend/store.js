@@ -71,6 +71,14 @@ function getSupabaseClient() {
   return supabaseClient;
 }
 
+function getStorageMode() {
+  return getSupabaseClient() ? "supabase" : "local";
+}
+
+function isSupabaseConfigured() {
+  return Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY));
+}
+
 function normalizeRemoteStore(value) {
   if (!value) return null;
   if (typeof value === "string") return JSON.parse(value);
@@ -213,4 +221,6 @@ module.exports = {
   updateSkusAsync,
   writeStore,
   writeStoreAsync,
+  getStorageMode,
+  isSupabaseConfigured,
 };
