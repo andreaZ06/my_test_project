@@ -1,4 +1,5 @@
 const JD_COMMENT_API = "https://club.jd.com/comment/productPageComments.action";
+const { loadKnowledgeBase, matchKnowledge, extractKnowledgeKeywords } = require("./keyword-knowledge");
 
 const keywordLexicon = [
   "拉稀", "软便", "呕吐", "过敏", "假货", "变质", "虫子", "发霉", "临期", "不吃", "狗不吃", "包装破损",
@@ -76,6 +77,7 @@ function normalizeJdComment({ sku, comment, bucket, page, index, productId }) {
   if (!content) return null;
 
   const reviewId = String(comment.id || comment.guid || comment.commentId || `${productId}-${bucket.ratingType}-${page}-${index}`);
+  const knowledgeMatches = matchKnowledge(content);
   return {
     id: `jd-${sku.id}-${reviewId}`,
     sourceReviewId: reviewId,
@@ -87,6 +89,7 @@ function normalizeJdComment({ sku, comment, bucket, page, index, productId }) {
     crawledAt: formatDate(new Date()),
     user: maskUser(comment.nickname || comment.userNickname || "京东用户"),
     keywords: extractKeywords(content),
+    knowledgeMatches,
     productUrl: buildProductUrl(sku.url),
     reviewUrl: buildReviewUrl(sku.url),
     reviewAnchorId: reviewId,
@@ -131,7 +134,9 @@ async function analyzeBadReviewsWithDeepSeek({ reviews, apiKey, model }) {
 
   const prompt = [
     "你是宠物食品品牌运营分析师。请分析京东狗粮差评，只输出 JSON。",
-    "JSON 字段：summary（一句话总结），risk_points（数组，每项包含 keyword、risk_level、reason、evidence、reviewUrl、suggestion）。",
+    "JSON 字段：summary、domainAnalysis、risk_points、pendingTerms。",
+    "domainAnalysis 每项包含 domain、topic、riskLevel、reason、evidenceReviewIds。",
+    "pendingTerms 只放未命中知识库但值得人工审核的新表达，不要自动入库。",
     "risk_level 只能是 high、medium、low。reviewUrl 必须优先使用输入评论里的 reviewUrl。",
     "不要输出 Markdown。",
     JSON.stringify(reviews.slice(0, 80).map((review) => ({
@@ -140,6 +145,7 @@ async function analyzeBadReviewsWithDeepSeek({ reviews, apiKey, model }) {
       date: review.date,
       content: review.content,
       keywords: review.keywords,
+      knowledgeMatches: review.knowledgeMatches,
       productUrl: review.productUrl,
       reviewUrl: review.reviewUrl,
     }))),
@@ -174,6 +180,8 @@ function normalizeDeepSeekAnalysis(parsed, fallback, reviews) {
   return {
     provider: "deepseek",
     summary: parsed.summary || fallback.summary,
+    domainAnalysis: Array.isArray(parsed.domainAnalysis) ? parsed.domainAnalysis : fallback.domainAnalysis,
+    pendingTerms: Array.isArray(parsed.pendingTerms) ? parsed.pendingTerms : fallback.pendingTerms,
     risk_points: points.length ? points.map((point) => {
       const matchedReview = reviews.find((review) => {
         const evidence = String(point.evidence || "");
@@ -197,7 +205,16 @@ function normalizeDeepSeekAnalysis(parsed, fallback, reviews) {
 
 function localBadReviewAnalysis(reviews) {
   const stats = new Map();
+  const domainMap = new Map();
   reviews.forEach((review) => {
+    (review.knowledgeMatches || matchKnowledge(review.content)).forEach((match) => {
+      const key = `${match.domain}|${match.topic}`;
+      const current = domainMap.get(key) || { domain: match.domain, topic: match.topic, riskLevel: match.riskLevel || "medium", reviewIds: [], reasons: new Set() };
+      current.reviewIds.push(review.id);
+      current.reasons.add(`${match.standardKeyword} 命中 ${match.matchedAliases?.join("、") || match.standardKeyword}`);
+      if (levelWeight(match.riskLevel) > levelWeight(current.riskLevel)) current.riskLevel = match.riskLevel;
+      domainMap.set(key, current);
+    });
     review.keywords.forEach((keyword) => {
       stats.set(keyword, (stats.get(keyword) || 0) + 1);
     });
@@ -224,8 +241,33 @@ function localBadReviewAnalysis(reviews) {
     summary: reviews.length
       ? `本次实时抓取到 ${reviews.length} 条差评，主要风险集中在 ${riskPoints.slice(0, 3).map((item) => item.keyword).join("、") || "暂无明显关键词"}。`
       : "本次没有抓取到差评。",
+    domainAnalysis: [...domainMap.values()].slice(0, 6).map((item) => ({
+      domain: item.domain,
+      topic: item.topic,
+      riskLevel: item.riskLevel,
+      reason: [...item.reasons].slice(0, 2).join("；"),
+      evidenceReviewIds: [...new Set(item.reviewIds)].slice(0, 5),
+    })),
+    pendingTerms: pendingTermsFromReviews(reviews),
     risk_points: riskPoints,
   };
+}
+
+function pendingTermsFromReviews(reviews) {
+  const known = new Set(loadKnowledgeBase().flatMap((entry) => [entry.standardKeyword].concat(entry.aliases || [])));
+  const counts = new Map();
+  reviews.forEach((review) => {
+    review.keywords.forEach((keyword) => {
+      if (!known.has(keyword)) counts.set(keyword, (counts.get(keyword) || 0) + 1);
+    });
+  });
+  return [...counts.entries()].filter(([, count]) => count >= 2).slice(0, 5).map(([rawTerm, count]) => ({
+    rawTerm,
+    suggestedKeyword: rawTerm,
+    suggestedDomain: "待判断",
+    suggestedTopic: "待判断",
+    reason: `差评中出现 ${count} 次，建议到 Obsidian 审核。`,
+  }));
 }
 
 function generateFallbackReviews(skus, pageSize) {
@@ -259,6 +301,7 @@ function generateFallbackReviews(skus, pageSize) {
         const reviewId = `fallback-${sku.id}-${ratingType}-${Date.now()}-${index}`;
         const date = new Date(today);
         date.setDate(today.getDate() - ((skuIndex + index) % 5));
+        const knowledgeMatches = matchKnowledge(content);
         reviews.push({
           id: `jd-${sku.id}-${reviewId}`,
           sourceReviewId: reviewId,
@@ -270,6 +313,7 @@ function generateFallbackReviews(skus, pageSize) {
           crawledAt: formatDate(today),
           user: `京***${index + 1}`,
           keywords: extractKeywords(content),
+          knowledgeMatches,
           productUrl: buildProductUrl(sku.url),
           reviewUrl: buildReviewUrl(sku.url),
           reviewAnchorId: reviewId,
@@ -289,6 +333,10 @@ function ratingBuckets() {
   ];
 }
 
+function levelWeight(level) {
+  return { high: 3, medium: 2, low: 1 }[level] || 0;
+}
+
 function parseJsonOrJsonp(text) {
   const trimmed = String(text || "").trim();
   if (!trimmed) throw new Error("京东评论接口返回空内容");
@@ -304,6 +352,7 @@ function parseJsonOrJsonp(text) {
 
 function extractKeywords(content) {
   const matched = new Set();
+  extractKnowledgeKeywords(content, loadKnowledgeBase()).forEach((keyword) => matched.add(keyword));
   keywordLexicon.forEach((keyword) => {
     if (content.includes(keyword)) matched.add(keyword);
   });

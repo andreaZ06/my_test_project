@@ -24,6 +24,7 @@
         <nav class="nav-list">
           <button class="nav-item active" type="button" data-view="overview" title="总览">总览</button>
           <button class="nav-item" type="button" data-view="sku" title="SKU详情">SKU详情</button>
+          <button class="nav-item" type="button" data-view="cluster" title="问题聚类">聚类</button>
           <button class="nav-item" type="button" data-view="keyword" title="关键词详情">关键词</button>
           <button class="nav-item" type="button" data-view="alerts" title="预警中心">预警</button>
           <button class="nav-item" type="button" data-view="settings" title="配置">配置</button>
@@ -148,6 +149,15 @@
             <article class="panel span-3">
               <div class="panel-heading">
                 <div>
+                  <h2>Issue domains</h2>
+                  <span class="hint">按分层知识库聚合问题域</span>
+                </div>
+              </div>
+              <div class="domain-grid" id="domainOverview"></div>
+            </article>
+            <article class="panel span-3">
+              <div class="panel-heading">
+                <div>
                   <h2>DeepSeek 差评解析</h2>
                   <span class="hint" id="deepseekAnalysisHint">等待实时抓取后生成</span>
                 </div>
@@ -188,6 +198,38 @@
                 </div>
               </div>
               <div class="review-list" id="skuReviewSamples"></div>
+            </article>
+          </section>
+        </section>
+
+        <section class="view" id="clusterView">
+          <section class="dashboard-grid">
+            <article class="panel span-3">
+              <div class="panel-heading">
+                <div>
+                  <h2>问题域总览</h2>
+                  <span class="hint">按适口性、肠胃、包装、物流、客服等业务域聚合</span>
+                </div>
+              </div>
+              <div class="domain-grid" id="clusterDomainGrid"></div>
+            </article>
+            <article class="panel span-2">
+              <div class="panel-heading">
+                <div>
+                  <h2>主题聚类</h2>
+                  <span class="hint">同义词统一归一到标准关键词和主题</span>
+                </div>
+              </div>
+              <div class="keyword-table" id="topicClusterTable"></div>
+            </article>
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>待审核新词</h2>
+                  <span class="hint">DeepSeek 建议，人工确认后入库</span>
+                </div>
+              </div>
+              <div class="keyword-list" id="pendingTermList"></div>
             </article>
           </section>
         </section>
@@ -295,6 +337,22 @@
                 <button class="secondary-button" type="submit">添加</button>
               </form>
               <div class="tag-list" id="sensitiveList"></div>
+            </article>
+            <article class="panel span-3">
+              <div class="panel-heading">
+                <div>
+                  <h2>分层关键词知识库</h2>
+                  <span class="hint">L1 问题域 / L2 主题 / L3 标准词 / L4 同义词 / L5 处置建议</span>
+                </div>
+              </div>
+              <div class="knowledge-sync-card">
+                <div>
+                  <strong id="knowledgeSyncStatus">等待同步词库</strong>
+                  <p>正式维护入口在 Obsidian；系统读取导出的 <code>data/keyword-knowledge.json</code>，AI 只生成待审核新词。</p>
+                </div>
+                <span class="chip" id="knowledgeEntryCount">0 条启用</span>
+              </div>
+              <div class="knowledge-list" id="knowledgeList"></div>
             </article>
           </section>
         </section>

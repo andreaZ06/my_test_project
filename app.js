@@ -1,11 +1,20 @@
 const TODAY = new Date();
 
 const storageKeys = {
-  skus: "maifudi.dog.skus.v2",
   rules: "maifudi.dog.rules.v2",
   sensitive: "maifudi.dog.sensitive.v2",
   alertStatus: "maifudi.dog.alert.status.v2",
 };
+
+const API_BASE = window.__API_BASE__ || ((location.hostname === "127.0.0.1" || location.hostname === "localhost") && location.port === "8765" ? "http://127.0.0.1:8787" : "");
+
+const fallbackKnowledgeBase = [
+  { id: "kb-gi-diarrhea", domain: "肠胃反应", topic: "腹泻软便", standardKeyword: "拉稀", aliases: ["腹泻", "窜稀", "便便稀", "拉肚子", "吃完拉肚子", "软便"], riskLevel: "high", owner: "品控/商品运营", suggestion: "核对 SKU、批次、换粮周期，并查看是否集中爆发。", enabled: true },
+  { id: "kb-palatability-reject", domain: "适口性问题", topic: "拒食不吃", standardKeyword: "狗不吃", aliases: ["不吃", "不爱吃", "闻了就走", "一口不碰", "没兴趣", "挑食不吃", "吃得少"], riskLevel: "high", owner: "商品运营", suggestion: "核对 SKU 配方、适口性反馈和是否集中在换粮用户。", enabled: true },
+  { id: "kb-package-broken", domain: "包装问题", topic: "包装破损", standardKeyword: "包装破损", aliases: ["破袋", "漏袋", "外箱破", "包装压坏", "封口坏", "封口差"], riskLevel: "medium", owner: "仓配/供应链", suggestion: "联动仓配排查包材、装箱和物流环节。", enabled: true },
+  { id: "kb-quality-smell", domain: "质量疑虑", topic: "异味变质", standardKeyword: "异味", aliases: ["味道怪", "臭味", "油味重", "发霉", "变质", "结块", "虫子"], riskLevel: "high", owner: "品控", suggestion: "优先核对批次、仓储温湿度、临期和开袋状态。", enabled: true },
+  { id: "kb-service-slow", domain: "客服体验", topic: "客服响应慢", standardKeyword: "客服慢", aliases: ["客服", "回复慢", "没人处理", "售后慢", "客服不理"], riskLevel: "medium", owner: "客服运营", suggestion: "核对客服响应 SLA，沉淀高频问题话术。", enabled: true },
+];
 
 const defaultSkus = [
   { id: "sku-beef-10kg", name: "麦富迪 牛肉双拼全价狗粮 10kg", jdSkuId: "100883991228", series: "成犬双拼粮", url: "https://item.jd.com/100883991228.html", status: "active", createdAt: "2026-06-01", updatedAt: "2026-06-01" },
@@ -28,12 +37,15 @@ const stopWords = new Set(["这个", "还是", "但是", "感觉", "已经", "�
 const keywordLexicon = ["拉稀", "软便", "呕吐", "过敏", "假货", "变质", "虫子", "发霉", "临期", "不吃", "狗不吃", "包装破损", "颗粒大", "颗粒小", "适口性", "复购", "涨价", "物流慢", "客服", "油腻", "异味", "泪痕", "便便臭", "活动价", "划算", "毛发", "换粮", "日期新鲜", "封口"];
 
 const state = {
-  skus: loadJson(storageKeys.skus, defaultSkus),
+  skus: defaultSkus.slice(),
+  skusSource: "fallback",
   rules: loadJson(storageKeys.rules, defaultRules),
   sensitive: loadJson(storageKeys.sensitive, defaultSensitive),
   alertStatus: loadJson(storageKeys.alertStatus, {}),
   reviews: [],
   alerts: [],
+  knowledgeBase: fallbackKnowledgeBase,
+  knowledgeSource: "fallback",
   deepseekAnalysis: null,
   selectedKeyword: "拉稀",
   evidenceJump: null,
@@ -42,6 +54,8 @@ const state = {
 
 document.addEventListener("DOMContentLoaded", async () => {
   bindEvents();
+  await loadSkusFromBackend();
+  await loadKnowledgeBase();
   syncRuleForm();
   await runDailySync(false);
 });
@@ -78,6 +92,22 @@ function bindEvents() {
   });
 }
 
+async function loadSkusFromBackend() {
+  try {
+    const response = await fetch(apiUrl("/api/skus"));
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "加载 SKU 配置失败");
+    const skus = normalizeSkus(payload.skus);
+    state.skus = skus.length ? skus : defaultSkus.slice();
+    state.skusSource = skus.length ? "backend" : "fallback";
+  } catch (error) {
+    state.skus = defaultSkus.slice();
+    state.skusSource = "fallback";
+    toast(error.message);
+  }
+  render();
+}
+
 async function runDailySync(showToast) {
   setSyncStatus("同步中", "");
   const previous = state.reviews;
@@ -104,20 +134,16 @@ async function runRealtimeSync() {
   setSyncStatus("实时抓取中", "");
 
   try {
-    const response = await fetch("/api/reviews/realtime-sync", {
+    const response = await fetch(apiUrl("/api/reviews/realtime-sync"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        skus: state.skus.filter((sku) => sku.status === "active"),
-        pagesPerRating: 1,
-        pageSize: 10,
-      }),
+      body: JSON.stringify({ pagesPerRating: 1, pageSize: 10 }),
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "实时抓取失败");
 
     if (Array.isArray(result.reviews) && result.reviews.length) {
-      state.reviews = dedupeReviews(state.reviews.concat(result.reviews));
+      state.reviews = dedupeReviews(state.reviews.concat(result.reviews.map(enrichReviewKnowledge)));
     }
     state.deepseekAnalysis = result.deepseekAnalysis || null;
     state.alerts = buildAlerts();
@@ -139,6 +165,8 @@ function render() {
   renderReviewTrend();
   renderKeywordPanels();
   renderRiskSkuRank();
+  renderDomainOverview();
+  renderClusterView();
   renderAlerts();
   renderSkuDetail();
   renderKeywordDetail();
@@ -230,6 +258,77 @@ function renderRiskSkuRank() {
       <div class="keyword-meta">
         <span>预警 ${row.alerts} 条</span>
         <span>差评率 ${row.badRate}%</span>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderDomainOverview() {
+  const html = renderDomainCards(domainStats(getFilteredReviews()).slice(0, 6));
+  if ($("domainOverview")) $("domainOverview").innerHTML = html;
+}
+
+function renderClusterView() {
+  if ($("clusterDomainGrid")) $("clusterDomainGrid").innerHTML = renderDomainCards(domainStats(getFilteredReviews()));
+  if ($("topicClusterTable")) $("topicClusterTable").innerHTML = renderTopicRows(topicStats(getFilteredReviews()));
+  if ($("pendingTermList")) $("pendingTermList").innerHTML = renderPendingTerms();
+}
+
+function renderDomainCards(rows) {
+  if (!rows.length) return '<div class="empty-state">暂无问题域聚类数据</div>';
+  return rows.map((row) => `
+    <article class="domain-card ${row.riskLevel}">
+      <div class="panel-heading">
+        <div>
+          <strong>${escapeHtml(row.domain)}</strong>
+          <p>${row.topicCount} 个主题 · ${row.keywordCount} 个标准词</p>
+        </div>
+        <span class="level-chip ${row.riskLevel}">${levelLabel(row.riskLevel)}</span>
+      </div>
+      <div class="keyword-meta">
+        <span>评论 ${row.reviewCount} 条</span>
+        <span>差评 ${row.badCount} 条</span>
+        <span>环比 ${formatGrowth(row.growth)}</span>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderTopicRows(rows) {
+  if (!rows.length) return '<div class="empty-state">暂无主题聚类数据</div>';
+  return rows.map((row) => {
+    const sample = row.sampleReviewId ? `<button class="secondary-button" type="button" onclick="selectKeyword('${escapeAttr(row.standardKeyword)}')">查看证据</button>` : "";
+    return `
+      <article class="topic-row ${row.riskLevel}">
+        <div>
+          <strong>${escapeHtml(row.domain)} / ${escapeHtml(row.topic)}</strong>
+          <p>${escapeHtml(row.standardKeyword)} · 命中：${escapeHtml(row.matchedAliases.join("、") || row.standardKeyword)}</p>
+          <div class="keyword-meta">
+            <span>评论 ${row.reviewCount} 条</span>
+            <span>差评 ${row.badCount} 条</span>
+            <span>负责人：${escapeHtml(row.owner || "未配置")}</span>
+          </div>
+        </div>
+        <div class="topic-action">
+          <span class="level-chip ${row.riskLevel}">${levelLabel(row.riskLevel)}</span>
+          ${sample}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderPendingTerms() {
+  const terms = pendingTerms();
+  if (!terms.length) return '<div class="empty-state">暂无待审核新词</div>';
+  return terms.map((term) => `
+    <article class="keyword-item">
+      <strong>${escapeHtml(term.rawTerm || term.term || "未知新词")}</strong>
+      <span class="chip">待 Obsidian 确认</span>
+      <div class="keyword-meta">
+        <span>建议标准词：${escapeHtml(term.suggestedKeyword || "-")}</span>
+        <span>${escapeHtml(term.suggestedDomain || "-")} / ${escapeHtml(term.suggestedTopic || "-")}</span>
+        <span>${escapeHtml(term.reason || "DeepSeek 建议")}</span>
       </div>
     </article>
   `).join("");
@@ -383,12 +482,14 @@ function renderDeepSeekAnalysis() {
   }
 
   const points = Array.isArray(analysis.risk_points) ? analysis.risk_points : [];
+  const domains = Array.isArray(analysis.domainAnalysis) ? analysis.domainAnalysis : [];
   hint.textContent = analysis.provider === "deepseek" ? "DeepSeek 已解析" : "本地规则兜底解析";
   panel.innerHTML = `
     <article class="analysis-summary">
       <strong>${escapeHtml(analysis.summary || "暂无总结")}</strong>
       <span class="chip">${escapeHtml(analysis.provider || "unknown")}</span>
     </article>
+    ${domains.length ? `<div class="domain-grid compact-domain-grid">${renderDomainAnalysisCards(domains)}</div>` : ""}
     <div class="analysis-grid">
       ${points.length ? points.map((point) => `
         <article class="analysis-card">
@@ -411,6 +512,16 @@ function renderDeepSeekAnalysis() {
   `;
 }
 
+function renderDomainAnalysisCards(domains) {
+  return domains.map((item) => `
+    <article class="domain-card ${item.riskLevel || "medium"}">
+      <strong>${escapeHtml(item.domain || "业务问题域")}</strong>
+      <p>${escapeHtml(item.topic || "待判断")} · ${escapeHtml(item.reason || "")}</p>
+      <span class="level-chip ${item.riskLevel || "medium"}">${levelLabel(item.riskLevel || "medium")}</span>
+    </article>
+  `).join("");
+}
+
 function renderAlerts() {
   const latest = getFilteredAlerts().slice(0, 5);
   $("latestAlertCount").textContent = `${latest.length} 条`;
@@ -425,13 +536,14 @@ function renderAlertItems(alerts) {
       <div class="panel-heading">
         <div>
           <strong>${escapeHtml(alert.skuName)}</strong>
-          <p>${escapeHtml(alert.keyword)} 近 7 天出现 ${alert.currentCount} 次，较前 7 天 ${formatGrowth(alert.growth)}。</p>
+          <p>${escapeHtml(alert.domain || "关键词")} / ${escapeHtml(alert.topic || alert.keyword)} 近 7 天出现 ${alert.currentCount} 次，较前 7 天 ${formatGrowth(alert.growth)}。</p>
         </div>
         <span class="level-chip ${alert.level}">${levelLabel(alert.level)}</span>
       </div>
       <div class="alert-meta">
         <span class="status-chip ${alert.status}">${alert.status === "read" ? "已查看" : "未查看"}</span>
         <span class="chip">触发：${alert.reason}</span>
+        ${alert.owner ? `<span class="chip">负责人：${escapeHtml(alert.owner)}</span>` : ""}
         <span class="chip">${alert.createdAt}</span>
         <button class="secondary-button" type="button" onclick="selectKeyword('${escapeAttr(alert.keyword)}', '${escapeAttr(alert.id)}')">查看证据</button>
         <button class="secondary-button" type="button" onclick="markAlertRead('${escapeAttr(alert.id)}')">标记已查看</button>
@@ -461,6 +573,28 @@ function renderSettings() {
   $("sensitiveList").innerHTML = state.sensitive.map((word) => `
     <span class="tag-pill">${escapeHtml(word)} <button type="button" title="删除" onclick="removeSensitive('${escapeAttr(word)}')">×</button></span>
   `).join("");
+  renderKnowledgeSettings();
+}
+
+function renderKnowledgeSettings() {
+  const active = activeKnowledgeBase();
+  if ($("knowledgeSyncStatus")) $("knowledgeSyncStatus").textContent = state.knowledgeSource === "json" ? "已读取 Obsidian 导出词库" : "使用前端兜底词库";
+  if ($("knowledgeEntryCount")) $("knowledgeEntryCount").textContent = `${active.length} 条启用`;
+  if (!$("knowledgeList")) return;
+  $("knowledgeList").innerHTML = active.map((entry) => `
+    <article class="knowledge-row">
+      <div>
+        <strong>${escapeHtml(entry.domain)} / ${escapeHtml(entry.topic)}</strong>
+        <p>${escapeHtml(entry.standardKeyword)} · ${escapeHtml((entry.aliases || []).join("、"))}</p>
+        <div class="keyword-meta">
+          <span class="level-chip ${entry.riskLevel || "medium"}">${levelLabel(entry.riskLevel || "medium")}</span>
+          <span>负责人：${escapeHtml(entry.owner || "未配置")}</span>
+          <span>Graph：${escapeHtml((entry.graphTags || []).join("、") || "-")}</span>
+        </div>
+      </div>
+      <span class="chip">Obsidian</span>
+    </article>
+  `).join("");
 }
 
 function syncRuleForm() {
@@ -488,7 +622,7 @@ function saveRules(event) {
   toast("预警规则已保存。");
 }
 
-function saveSku(event) {
+async function saveSku(event) {
   event.preventDefault();
   const id = $("editingSkuId").value || `sku-custom-${Date.now()}`;
   const existing = findSku(id);
@@ -502,15 +636,15 @@ function saveSku(event) {
     createdAt: existing?.createdAt || formatDate(TODAY),
     updatedAt: formatDate(TODAY),
   };
-  if (existing) {
-    Object.assign(existing, sku);
-  } else {
-    state.skus.push(sku);
+  const nextSkus = existing ? state.skus.map((item) => (item.id === id ? { ...item, ...sku } : item)) : state.skus.concat(sku);
+  try {
+    await persistSkus(nextSkus);
+    resetSkuForm();
+    await runDailySync(false);
+    toast("SKU 配置已保存");
+  } catch (error) {
+    toast(error.message);
   }
-  saveJson(storageKeys.skus, state.skus);
-  resetSkuForm();
-  runDailySync(false);
-  toast("SKU 配置已保存。");
 }
 
 function resetSkuForm() {
@@ -529,19 +663,27 @@ function editSku(id) {
   switchView("settings");
 }
 
-function toggleSku(id) {
+async function toggleSku(id) {
   const sku = findSku(id);
-  sku.status = sku.status === "active" ? "inactive" : "active";
-  sku.updatedAt = formatDate(TODAY);
-  saveJson(storageKeys.skus, state.skus);
-  runDailySync(false);
+  if (!sku) return;
+  const nextSkus = state.skus.map((item) => (item.id === id ? { ...item, status: item.status === "active" ? "inactive" : "active", updatedAt: formatDate(TODAY) } : item));
+  try {
+    await persistSkus(nextSkus);
+    await runDailySync(false);
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
-function deleteSku(id) {
-  state.skus = state.skus.filter((sku) => sku.id !== id);
-  saveJson(storageKeys.skus, state.skus);
-  runDailySync(false);
-  toast("SKU 已删除。");
+async function deleteSku(id) {
+  const nextSkus = state.skus.filter((sku) => sku.id !== id);
+  try {
+    await persistSkus(nextSkus);
+    await runDailySync(false);
+    toast("SKU 已删除");
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 function addSensitiveWord(event) {
@@ -638,7 +780,7 @@ function buildHistoricalReviews(skus) {
       for (let i = 0; i < dailyTotal; i += 1) {
         const ratingType = pickRatingType(skuIndex, dayIndex, i);
         const content = buildReviewContent(sku, skuIndex, dayIndex, i, ratingType);
-        rows.push({
+        rows.push(enrichReviewKnowledge({
           id: `${sku.id}-${date}-${i}`,
           skuId: sku.id,
           content,
@@ -648,7 +790,7 @@ function buildHistoricalReviews(skus) {
           user: `用户${String((skuIndex + 1) * 1000 + dayIndex * 17 + i).slice(-4)}`,
           tags: [],
           keywords: extractKeywords(content),
-        });
+        }));
       }
     });
   });
@@ -700,24 +842,28 @@ function buildAlerts() {
   const alerts = [];
   state.skus.filter((sku) => sku.status === "active").forEach((sku) => {
     const currentReviews = getReviewsBySku(sku.id, 7);
-    const stats = keywordStats(currentReviews, sku.id);
+    const stats = topicStats(currentReviews, sku.id);
     stats.forEach((item) => {
-      const isSensitive = state.sensitive.includes(item.keyword);
+      const isSensitive = item.riskLevel === "high" || state.sensitive.includes(item.standardKeyword);
       const level = riskLevel(item, isSensitive);
       if (!level) return;
-      const id = `${sku.id}-${item.keyword}`;
-      const sampleReview = currentReviews.find((review) => review.ratingType === "bad" && review.keywords.includes(item.keyword))
-        || currentReviews.find((review) => review.keywords.includes(item.keyword));
+      const id = `${sku.id}-${item.domain}-${item.topic}`;
+      const sampleReview = currentReviews.find((review) => review.ratingType === "bad" && reviewHasTopic(review, item.topic))
+        || currentReviews.find((review) => reviewHasTopic(review, item.topic));
       alerts.push({
         id,
         skuId: sku.id,
         skuName: sku.name,
-        keyword: item.keyword,
+        keyword: item.standardKeyword,
+        domain: item.domain,
+        topic: item.topic,
         level,
         currentCount: item.count,
         previousCount: item.previous,
         growth: item.growth,
-        reason: isSensitive ? "命中高敏词 + 样本量达标" : "词频环比异常上涨",
+        reason: isSensitive ? "命中高风险主题 + 样本量达标" : "主题环比异常上涨",
+        owner: item.owner,
+        suggestion: item.suggestion,
         status: state.alertStatus[id] || "unread",
         createdAt: formatDate(TODAY),
         sample: sampleReview?.content || "",
@@ -735,6 +881,72 @@ function riskLevel(item, isSensitive) {
   if (item.count >= 8 && item.growth >= state.rules.mediumGrowth) return "medium";
   if (item.count >= state.rules.minCount && item.growth >= state.rules.lowGrowth) return "low";
   return "";
+}
+
+function domainStats(reviews) {
+  const map = new Map();
+  reviews.forEach((review) => {
+    getReviewKnowledgeMatches(review).forEach((match) => {
+      const current = map.get(match.domain) || { domain: match.domain, reviewIds: new Set(), badCount: 0, topics: new Set(), keywords: new Set(), riskLevel: "low" };
+      current.reviewIds.add(review.id);
+      current.topics.add(match.topic);
+      current.keywords.add(match.standardKeyword);
+      if (review.ratingType === "bad") current.badCount += 1;
+      current.riskLevel = higherRisk(current.riskLevel, match.riskLevel);
+      map.set(match.domain, current);
+    });
+  });
+  return [...map.values()].map((item) => {
+    const stat = statForDomain(item.domain);
+    return {
+      domain: item.domain,
+      reviewCount: item.reviewIds.size,
+      badCount: item.badCount,
+      topicCount: item.topics.size,
+      keywordCount: item.keywords.size,
+      riskLevel: item.riskLevel,
+      previous: stat.previous,
+      growth: stat.growth,
+    };
+  }).sort((a, b) => levelWeight(b.riskLevel) - levelWeight(a.riskLevel) || b.badCount - a.badCount || b.reviewCount - a.reviewCount);
+}
+
+function topicStats(reviews, skuId = getSelectedSku()?.id || "all") {
+  const map = new Map();
+  reviews.forEach((review) => {
+    getReviewKnowledgeMatches(review).forEach((match) => {
+      const key = `${match.domain}|${match.topic}`;
+      const current = map.get(key) || {
+        domain: match.domain,
+        topic: match.topic,
+        standardKeyword: match.standardKeyword,
+        matchedAliases: new Set(),
+        reviewIds: new Set(),
+        badCount: 0,
+        riskLevel: match.riskLevel || "medium",
+        owner: match.owner || "",
+        suggestion: match.suggestion || "",
+        sampleReviewId: "",
+      };
+      current.reviewIds.add(review.id);
+      (match.matchedAliases || []).forEach((alias) => current.matchedAliases.add(alias));
+      if (review.ratingType === "bad") current.badCount += 1;
+      if (!current.sampleReviewId || review.ratingType === "bad") current.sampleReviewId = review.id;
+      current.riskLevel = higherRisk(current.riskLevel, match.riskLevel);
+      map.set(key, current);
+    });
+  });
+  return [...map.values()].map((item) => {
+    const stat = statForTopic(item.topic, skuId);
+    return {
+      ...item,
+      count: item.reviewIds.size,
+      reviewCount: item.reviewIds.size,
+      matchedAliases: [...item.matchedAliases],
+      previous: stat.previous,
+      growth: stat.growth,
+    };
+  }).sort((a, b) => levelWeight(b.riskLevel) - levelWeight(a.riskLevel) || b.badCount - a.badCount || b.count - a.count);
 }
 
 function keywordStats(reviews, skuId = getSelectedSku()?.id || "all") {
@@ -763,6 +975,24 @@ function statForKeyword(keyword, skuId = "all") {
   return { current, previous, growth: growthRate(current, previous) };
 }
 
+function statForTopic(topic, skuId = "all") {
+  const currentDates = new Set(getDates(7));
+  const prevDates = new Set(getDates(14).slice(0, 7));
+  const reviews = state.reviews.filter((review) => (skuId === "all" || review.skuId === skuId) && reviewHasTopic(review, topic));
+  const current = reviews.filter((review) => currentDates.has(review.date)).length;
+  const previous = reviews.filter((review) => prevDates.has(review.date)).length;
+  return { current, previous, growth: growthRate(current, previous) };
+}
+
+function statForDomain(domain) {
+  const currentDates = new Set(getDates(7));
+  const prevDates = new Set(getDates(14).slice(0, 7));
+  const reviews = state.reviews.filter((review) => getReviewKnowledgeMatches(review).some((match) => match.domain === domain));
+  const current = reviews.filter((review) => currentDates.has(review.date)).length;
+  const previous = reviews.filter((review) => prevDates.has(review.date)).length;
+  return { current, previous, growth: growthRate(current, previous) };
+}
+
 function getFilteredReviews(options = {}) {
   const skuId = options.skuId || $("skuFilter").value || "all";
   const rating = options.rating || $("ratingFilter").value || "all";
@@ -773,7 +1003,7 @@ function getFilteredReviews(options = {}) {
     if (skuId !== "all" && review.skuId !== skuId) return false;
     if (rating !== "all" && review.ratingType !== rating) return false;
     if (!dates.has(review.date)) return false;
-    if (keyword && !review.content.includes(keyword) && !review.keywords.includes(keyword)) return false;
+    if (keyword && !review.content.includes(keyword) && !review.keywords.includes(keyword) && !getReviewKnowledgeMatches(review).some((match) => [match.domain, match.topic, match.standardKeyword].includes(keyword))) return false;
     return true;
   });
 }
@@ -797,6 +1027,7 @@ function getFilteredAlerts() {
 
 function extractKeywords(content) {
   const matched = new Set();
+  matchKnowledge(content).forEach((item) => matched.add(item.standardKeyword));
   keywordLexicon.concat(state.sensitive).forEach((keyword) => {
     if (content.includes(keyword)) matched.add(keyword);
   });
@@ -805,6 +1036,79 @@ function extractKeywords(content) {
     if (clean.length >= 2 && clean.length <= 5 && !stopWords.has(clean)) matched.add(clean);
   });
   return [...matched].slice(0, 8);
+}
+
+async function loadKnowledgeBase() {
+  try {
+    const response = await fetch("./data/keyword-knowledge.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`knowledge ${response.status}`);
+    const payload = await response.json();
+    const entries = Array.isArray(payload) ? payload : payload.entries || [];
+    state.knowledgeBase = entries.length ? entries : fallbackKnowledgeBase;
+    state.knowledgeSource = entries.length ? "json" : "fallback";
+  } catch {
+    state.knowledgeBase = fallbackKnowledgeBase;
+    state.knowledgeSource = "fallback";
+  }
+}
+
+function activeKnowledgeBase() {
+  return (state.knowledgeBase || []).filter((entry) => entry.enabled !== false);
+}
+
+function matchKnowledge(content) {
+  const text = String(content || "");
+  const matches = [];
+  activeKnowledgeBase().forEach((entry) => {
+    const terms = [entry.standardKeyword].concat(entry.aliases || []);
+    const matchedAliases = [...new Set(terms.filter((term) => term && text.includes(term)))];
+    if (!matchedAliases.length) return;
+    matches.push({
+      id: entry.id,
+      domain: entry.domain,
+      topic: entry.topic,
+      standardKeyword: entry.standardKeyword,
+      matchedAliases,
+      riskLevel: entry.riskLevel || "medium",
+      owner: entry.owner || "",
+      suggestion: entry.suggestion || "",
+    });
+  });
+  return matches;
+}
+
+function enrichReviewKnowledge(review) {
+  const knowledgeMatches = Array.isArray(review.knowledgeMatches) && review.knowledgeMatches.length
+    ? review.knowledgeMatches
+    : matchKnowledge(review.content);
+  const normalizedKeywords = new Set(review.keywords || []);
+  knowledgeMatches.forEach((match) => normalizedKeywords.add(match.standardKeyword));
+  return { ...review, knowledgeMatches, keywords: [...normalizedKeywords].slice(0, 10) };
+}
+
+function getReviewKnowledgeMatches(review) {
+  if (Array.isArray(review.knowledgeMatches) && review.knowledgeMatches.length) return review.knowledgeMatches;
+  return matchKnowledge(review.content);
+}
+
+function reviewHasTopic(review, topic) {
+  return getReviewKnowledgeMatches(review).some((match) => match.topic === topic);
+}
+
+function pendingTerms() {
+  const fromDeepSeek = Array.isArray(state.deepseekAnalysis?.pendingTerms) ? state.deepseekAnalysis.pendingTerms : [];
+  const known = new Set(activeKnowledgeBase().flatMap((entry) => [entry.standardKeyword].concat(entry.aliases || [])));
+  const fromReviews = keywordStats(getFilteredReviews({ rating: "bad" }))
+    .filter((item) => !known.has(item.keyword) && item.badCount >= 2)
+    .slice(0, 4)
+    .map((item) => ({
+      rawTerm: item.keyword,
+      suggestedKeyword: item.keyword,
+      suggestedDomain: "待判断",
+      suggestedTopic: "待判断",
+      reason: `差评中出现 ${item.badCount} 次，建议到 Obsidian 审核。`,
+    }));
+  return fromDeepSeek.concat(fromReviews).slice(0, 8);
 }
 
 function getSelectedSku() {
@@ -872,6 +1176,10 @@ function levelWeight(level) {
   return { high: 3, medium: 2, low: 1 }[level] || 0;
 }
 
+function higherRisk(a, b) {
+  return levelWeight(b) > levelWeight(a) ? b : a;
+}
+
 function ratingLabel(type) {
   return { good: "好评", neutral: "中评", bad: "差评" }[type] || type;
 }
@@ -904,6 +1212,37 @@ function loadJson(key, fallback) {
 
 function saveJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
+}
+
+async function persistSkus(nextSkus) {
+  const normalized = normalizeSkus(nextSkus);
+  const response = await fetch(apiUrl("/api/skus"), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ skus: normalized }),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || "保存 SKU 失败");
+  state.skus = normalizeSkus(payload.skus);
+  state.skusSource = "backend";
+  return state.skus;
+}
+
+function normalizeSkus(skus) {
+  return (Array.isArray(skus) ? skus : []).map((sku) => ({
+    id: String(sku.id || "").trim(),
+    name: String(sku.name || "").trim(),
+    jdSkuId: String(sku.jdSkuId || "").trim(),
+    series: String(sku.series || "").trim(),
+    url: String(sku.url || "").trim(),
+    status: sku.status === "inactive" ? "inactive" : "active",
+    createdAt: sku.createdAt || formatDate(TODAY),
+    updatedAt: sku.updatedAt || formatDate(TODAY),
+  })).filter((sku) => sku.id && sku.name && sku.jdSkuId && sku.series && sku.url);
+}
+
+function apiUrl(path) {
+  return `${API_BASE}${path}`;
 }
 
 function escapeHtml(value) {

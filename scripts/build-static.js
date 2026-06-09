@@ -4,6 +4,7 @@ const path = require("path");
 const root = path.resolve(__dirname, "..");
 const outDirs = [path.join(root, "dist"), path.join(root, "public")];
 const files = ["index.html", "styles.css", "app.js", "README.md"];
+const dataDir = path.join(root, "data");
 
 for (const outDir of outDirs) {
   fs.rmSync(outDir, { recursive: true, force: true });
@@ -12,6 +13,9 @@ for (const outDir of outDirs) {
   for (const file of files) {
     fs.copyFileSync(path.join(root, file), path.join(outDir, file));
   }
+  if (fs.existsSync(dataDir)) {
+    fs.cpSync(dataDir, path.join(outDir, "data"), { recursive: true });
+  }
 }
 
-console.log(`Copied ${files.length} static files to ${outDirs.map((dir) => path.relative(root, dir)).join(" and ")}`);
+console.log(`Copied ${files.length} static files and data assets to ${outDirs.map((dir) => path.relative(root, dir)).join(" and ")}`);

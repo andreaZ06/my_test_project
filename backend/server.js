@@ -3,6 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
 const { realtimeSync } = require("./jd-realtime");
+const storeData = require("./store");
 
 loadEnv();
 
@@ -22,7 +23,7 @@ const defaultSkus = [
 const sensitiveKeywords = ["拉稀", "软便", "呕吐", "过敏", "假货", "变质", "虫子", "发霉", "临期", "不吃", "狗不吃", "包装破损"];
 const keywordLexicon = ["拉稀", "软便", "呕吐", "过敏", "假货", "变质", "虫子", "发霉", "临期", "不吃", "狗不吃", "包装破损", "颗粒大", "适口性", "复购", "涨价", "物流慢", "客服", "油腻", "异味", "泪痕", "便便臭", "活动价", "划算", "毛发", "换粮", "日期新鲜", "封口"];
 
-ensureStore();
+storeData.ensureStore();
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -55,6 +56,22 @@ async function routeApi(req, res, url) {
     return;
   }
 
+  if (req.method === "GET" && url.pathname === "/api/skus") {
+    const store = readStore();
+    sendJson(res, 200, { skus: store.skus, updatedAt: store.updatedAt });
+    return;
+  }
+
+  if ((req.method === "PUT" || req.method === "POST") && url.pathname === "/api/skus") {
+    const body = await readJson(req);
+    const store = readStore();
+    store.skus = storeData.normalizeSkus(body.skus);
+    store.updatedAt = new Date().toISOString();
+    storeData.writeStore(store);
+    sendJson(res, 200, { ok: true, skus: store.skus, updatedAt: store.updatedAt });
+    return;
+  }
+
   if (req.method === "GET" && url.pathname === "/api/dashboard") {
     const store = readStore();
     sendJson(res, 200, buildDashboard(store));
@@ -73,7 +90,7 @@ async function routeApi(req, res, url) {
   if (req.method === "POST" && url.pathname === "/api/reviews/realtime-sync") {
     const store = readStore();
     const body = await readJson(req);
-    const skus = Array.isArray(body.skus) && body.skus.length ? body.skus : store.skus;
+    const skus = Array.isArray(store.skus) && store.skus.length ? store.skus : storeData.defaultSkus;
     const result = await realtimeSync({
       skus,
       pagesPerRating: Number(body.pagesPerRating || 1),
@@ -337,7 +354,9 @@ function readStore() {
 }
 
 function writeStore(store) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(store, null, 2), "utf8");
+  const tempPath = `${DB_PATH}.tmp`;
+  fs.writeFileSync(tempPath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
+  fs.renameSync(tempPath, DB_PATH);
 }
 
 function serveStatic(res, pathname) {
@@ -379,7 +398,7 @@ function sendJson(res, status, payload) {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
   });
   res.end(JSON.stringify(payload, null, 2));
 }
