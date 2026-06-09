@@ -9,9 +9,10 @@ const DATA_DIR = process.env.VERCEL
   : PACKAGED_DATA_DIR;
 const DB_PATH = path.join(DATA_DIR, "store.json");
 const PACKAGED_DB_PATH = path.join(PACKAGED_DATA_DIR, "store.json");
-const REMOTE_STORE_KEY = process.env.SKU_STORE_KEY || "maifudi:store";
-let redisClient = null;
-let redisChecked = false;
+const SUPABASE_CONFIG_TABLE = process.env.SUPABASE_CONFIG_TABLE || "app_config";
+const SUPABASE_STORE_ID = process.env.SUPABASE_STORE_ID || "maifudi-store";
+let supabaseClient = null;
+let supabaseChecked = false;
 
 const defaultSkus = [
   { id: "sku-beef-10kg", name: "麦富迪牛肉双拼全价狗粮 10kg", jdSkuId: "100883991228", series: "成犬双拼粮", url: "https://item.jd.com/100883991228.html", status: "active" },
@@ -57,15 +58,17 @@ function updateSkus(nextSkus) {
   return store;
 }
 
-function getRedisClient() {
-  if (redisChecked) return redisClient;
-  redisChecked = true;
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-  if (!url || !token) return null;
-  const { Redis } = require("@upstash/redis");
-  redisClient = new Redis({ url, token });
-  return redisClient;
+function getSupabaseClient() {
+  if (supabaseChecked) return supabaseClient;
+  supabaseChecked = true;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  const { createClient } = require("@supabase/supabase-js");
+  supabaseClient = createClient(url, key, {
+    auth: { persistSession: false },
+  });
+  return supabaseClient;
 }
 
 function normalizeRemoteStore(value) {
@@ -75,22 +78,39 @@ function normalizeRemoteStore(value) {
 }
 
 async function readStoreAsync() {
-  const redis = getRedisClient();
-  if (!redis) return readStore();
-  const remoteStore = normalizeRemoteStore(await redis.get(REMOTE_STORE_KEY));
+  const supabase = getSupabaseClient();
+  if (!supabase) return readStore();
+
+  const { data, error } = await supabase
+    .from(SUPABASE_CONFIG_TABLE)
+    .select("value")
+    .eq("id", SUPABASE_STORE_ID)
+    .maybeSingle();
+  if (error) throw error;
+
+  const remoteStore = normalizeRemoteStore(data?.value);
   if (remoteStore && Array.isArray(remoteStore.skus)) return remoteStore;
+
   const localStore = readStore();
-  await redis.set(REMOTE_STORE_KEY, JSON.stringify(localStore));
+  await writeStoreAsync(localStore);
   return localStore;
 }
 
 async function writeStoreAsync(store) {
-  const redis = getRedisClient();
-  if (!redis) {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
     writeStore(store);
     return;
   }
-  await redis.set(REMOTE_STORE_KEY, JSON.stringify(store));
+
+  const { error } = await supabase
+    .from(SUPABASE_CONFIG_TABLE)
+    .upsert({
+      id: SUPABASE_STORE_ID,
+      value: store,
+      updated_at: new Date().toISOString(),
+    });
+  if (error) throw error;
 }
 
 async function updateSkusAsync(nextSkus) {

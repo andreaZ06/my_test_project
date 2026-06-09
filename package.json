@@ -12,6 +12,6 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@upstash/redis": "^1.38.0"
+    "@supabase/supabase-js": "^2.108.0"
   }
 }
