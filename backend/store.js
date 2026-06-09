@@ -9,6 +9,9 @@ const DATA_DIR = process.env.VERCEL
   : PACKAGED_DATA_DIR;
 const DB_PATH = path.join(DATA_DIR, "store.json");
 const PACKAGED_DB_PATH = path.join(PACKAGED_DATA_DIR, "store.json");
+const REMOTE_STORE_KEY = process.env.SKU_STORE_KEY || "maifudi:store";
+let redisClient = null;
+let redisChecked = false;
 
 const defaultSkus = [
   { id: "sku-beef-10kg", name: "麦富迪牛肉双拼全价狗粮 10kg", jdSkuId: "100883991228", series: "成犬双拼粮", url: "https://item.jd.com/100883991228.html", status: "active" },
@@ -51,6 +54,50 @@ function updateSkus(nextSkus) {
   store.skus = Array.isArray(nextSkus) ? nextSkus : [];
   store.updatedAt = new Date().toISOString();
   writeStore(store);
+  return store;
+}
+
+function getRedisClient() {
+  if (redisChecked) return redisClient;
+  redisChecked = true;
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (!url || !token) return null;
+  const { Redis } = require("@upstash/redis");
+  redisClient = new Redis({ url, token });
+  return redisClient;
+}
+
+function normalizeRemoteStore(value) {
+  if (!value) return null;
+  if (typeof value === "string") return JSON.parse(value);
+  return value;
+}
+
+async function readStoreAsync() {
+  const redis = getRedisClient();
+  if (!redis) return readStore();
+  const remoteStore = normalizeRemoteStore(await redis.get(REMOTE_STORE_KEY));
+  if (remoteStore && Array.isArray(remoteStore.skus)) return remoteStore;
+  const localStore = readStore();
+  await redis.set(REMOTE_STORE_KEY, JSON.stringify(localStore));
+  return localStore;
+}
+
+async function writeStoreAsync(store) {
+  const redis = getRedisClient();
+  if (!redis) {
+    writeStore(store);
+    return;
+  }
+  await redis.set(REMOTE_STORE_KEY, JSON.stringify(store));
+}
+
+async function updateSkusAsync(nextSkus) {
+  const store = await readStoreAsync();
+  store.skus = Array.isArray(nextSkus) ? nextSkus : [];
+  store.updatedAt = new Date().toISOString();
+  await writeStoreAsync(store);
   return store;
 }
 
@@ -141,6 +188,9 @@ module.exports = {
   ensureStore,
   normalizeSkus,
   readStore,
+  readStoreAsync,
   updateSkus,
+  updateSkusAsync,
   writeStore,
+  writeStoreAsync,
 };

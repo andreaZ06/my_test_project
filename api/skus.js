@@ -11,14 +11,14 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === "GET") {
-      const store = storeData.readStore();
+      const store = await storeData.readStoreAsync();
       res.status(200).json({ skus: store.skus, updatedAt: store.updatedAt });
       return;
     }
 
     if (req.method === "PUT" || req.method === "POST") {
       const body = typeof req.body === "object" && req.body ? req.body : {};
-      const store = storeData.updateSkus(storeData.normalizeSkus(body.skus));
+      const store = await storeData.updateSkusAsync(storeData.normalizeSkus(body.skus));
       res.status(200).json({ ok: true, skus: store.skus, updatedAt: store.updatedAt });
       return;
     }

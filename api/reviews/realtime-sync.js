@@ -10,7 +10,7 @@ module.exports = async function handler(req, res) {
 
   try {
     const body = typeof req.body === "object" && req.body ? req.body : {};
-    const store = storeData.readStore();
+    const store = await storeData.readStoreAsync();
     const skus = Array.isArray(store.skus) && store.skus.length ? store.skus : storeData.defaultSkus;
     const result = await realtimeSync({
       skus,
