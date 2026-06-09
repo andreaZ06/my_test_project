@@ -1,9 +1,14 @@
 const fs = require("fs");
 const path = require("path");
+const os = require("os");
 
 const ROOT = path.resolve(__dirname, "..");
-const DATA_DIR = path.join(ROOT, "backend", "data");
+const PACKAGED_DATA_DIR = path.join(ROOT, "backend", "data");
+const DATA_DIR = process.env.VERCEL
+  ? path.join(os.tmpdir(), "maifudi-jd-review-dashboard")
+  : PACKAGED_DATA_DIR;
 const DB_PATH = path.join(DATA_DIR, "store.json");
+const PACKAGED_DB_PATH = path.join(PACKAGED_DATA_DIR, "store.json");
 
 const defaultSkus = [
   { id: "sku-beef-10kg", name: "麦富迪牛肉双拼全价狗粮 10kg", jdSkuId: "100883991228", series: "成犬双拼粮", url: "https://item.jd.com/100883991228.html", status: "active" },
@@ -16,6 +21,10 @@ const defaultSkus = [
 function ensureStore() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   if (fs.existsSync(DB_PATH)) return;
+  if (PACKAGED_DB_PATH !== DB_PATH && fs.existsSync(PACKAGED_DB_PATH)) {
+    fs.copyFileSync(PACKAGED_DB_PATH, DB_PATH);
+    return;
+  }
   const store = {
     skus: defaultSkus,
     reviews: [],
