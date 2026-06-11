@@ -1,0 +1,114 @@
+{
+  "source": "obsidian-vault",
+  "updatedAt": "2026-06-11T14:34:36.279Z",
+  "pendingTerms": [
+    {
+      "id": "pending-打开有异味",
+      "rawTerm": "打开有异味",
+      "suggestedKeyword": "打开有异味",
+      "suggestedDomain": "质量疑虑",
+      "suggestedTopic": "待审核",
+      "reason": "该表达在差评中出现 76 次，建议人工审核后再纳入正式知识库。",
+      "evidenceReviewIds": [
+        "sku-beef-10kg-2026-05-11-0",
+        "sku-beef-10kg-2026-05-20-12",
+        "sku-beef-10kg-2026-05-22-10",
+        "sku-beef-10kg-2026-05-24-8",
+        "sku-beef-10kg-2026-05-25-7"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-11T11:21:54.368Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-换粮",
+      "rawTerm": "换粮",
+      "suggestedKeyword": "换粮",
+      "suggestedDomain": "待判断",
+      "suggestedTopic": "待判断",
+      "reason": "差评中出现 5 次，建议到 Obsidian 审核。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781188475933-1",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781188476015-0",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781188476111-3",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781188476173-2",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781188476241-1"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-11T14:34:36.272Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-里面有结块",
+      "rawTerm": "里面有结块",
+      "suggestedKeyword": "里面有结块",
+      "suggestedDomain": "待判断",
+      "suggestedTopic": "待判断",
+      "reason": "差评中出现 5 次，建议到 Obsidian 审核。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781188475941-2",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781188476022-1",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781188476088-0",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781188476179-3",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781188476250-2"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-11T14:34:36.272Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-日期也临期",
+      "rawTerm": "日期也临期",
+      "suggestedKeyword": "日期也临期",
+      "suggestedDomain": "待判断",
+      "suggestedTopic": "待判断",
+      "reason": "差评中出现 5 次，建议到 Obsidian 审核。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781188475941-2",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781188476022-1",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781188476088-0",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781188476179-3",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781188476250-2"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-11T14:34:36.272Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-颗粒太大",
+      "rawTerm": "颗粒太大",
+      "suggestedKeyword": "颗粒太大",
+      "suggestedDomain": "待判断",
+      "suggestedTopic": "待判断",
+      "reason": "差评中出现 5 次，建议到 Obsidian 审核。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781188475953-3",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781188476030-2",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781188476094-1",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781188476159-0",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781188476257-3"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-11T14:34:36.272Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-咬不动",
+      "rawTerm": "咬不动",
+      "suggestedKeyword": "咬不动",
+      "suggestedDomain": "待判断",
+      "suggestedTopic": "待判断",
+      "reason": "差评中出现 5 次，建议到 Obsidian 审核。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781188475953-3",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781188476030-2",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781188476094-1",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781188476159-0",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781188476257-3"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-11T14:34:36.272Z",
+      "source": "voc-system"
+    }
+  ]
+}

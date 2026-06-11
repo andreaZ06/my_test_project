@@ -1,25 +1,31 @@
-const { realtimeSync } = require("../../backend/jd-realtime");
-const storeData = require("../../backend/store");
+const { handleApiRequest } = require("../../backend/voc-core");
 
 module.exports = async function handler(req, res) {
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.status(204).end();
+    return;
+  }
+
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+    res.setHeader("Allow", "POST, OPTIONS");
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
   try {
-    const body = typeof req.body === "object" && req.body ? req.body : {};
-    const store = await storeData.readStoreAsync();
-    const skus = Array.isArray(store.skus) && store.skus.length ? store.skus : storeData.defaultSkus;
-    const result = await realtimeSync({
-      skus,
-      pagesPerRating: Number(body.pagesPerRating || 1),
-      pageSize: Number(body.pageSize || 10),
-      deepseekApiKey: process.env.DEEPSEEK_API_KEY,
-      deepseekModel: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+    const result = await handleApiRequest({
+      method: "POST",
+      pathname: "/api/reviews/realtime-sync",
+      body: typeof req.body === "object" && req.body ? req.body : {},
+      query: req.query || {},
     });
-    res.status(200).json(result);
+
+    res.status(result.status || 200);
+    Object.entries(result.headers || {}).forEach(([key, value]) => res.setHeader(key, value));
+    res.json(result.body);
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message || "Realtime sync failed" });
   }

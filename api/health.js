@@ -1,4 +1,4 @@
-const storeData = require("../backend/store");
+const { handleApiRequest } = require("../backend/voc-core");
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -15,23 +15,14 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  try {
-    const storageMode = storeData.getStorageMode();
-    const supabaseConfigured = storeData.isSupabaseConfigured();
-    const store = await storeData.readStoreAsync();
-    res.status(200).json({
-      ok: true,
-      storageMode,
-      supabaseConfigured,
-      updatedAt: store.updatedAt,
-      skuCount: Array.isArray(store.skus) ? store.skus.length : 0,
-    });
-  } catch (error) {
-    res.status(500).json({
-      ok: false,
-      storageMode: storeData.getStorageMode(),
-      supabaseConfigured: storeData.isSupabaseConfigured(),
-      error: error.message || "Failed to load health status",
-    });
-  }
+  const result = await handleApiRequest({
+    method: "GET",
+    pathname: "/api/health",
+    body: {},
+    query: {},
+  });
+
+  res.status(result.status || 200);
+  Object.entries(result.headers || {}).forEach(([key, value]) => res.setHeader(key, value));
+  res.json(result.body);
 };

@@ -1,9 +1,9 @@
 const JD_COMMENT_API = "https://club.jd.com/comment/productPageComments.action";
-const { loadKnowledgeBase, matchKnowledge, extractKnowledgeKeywords } = require("./keyword-knowledge");
+const { extractKnowledgeKeywords, loadKnowledgeBase, matchKnowledge } = require("./keyword-knowledge");
 
 const keywordLexicon = [
   "拉稀", "软便", "呕吐", "过敏", "假货", "变质", "虫子", "发霉", "临期", "不吃", "狗不吃", "包装破损",
-  "颗粒大", "颗粒小", "适口性", "复购", "涨价", "物流慢", "客服", "油腻", "异味", "泪痕", "便便臭",
+  "颗粒大", "颗粒小", "适口性", "复购", "涨价", "物流慢", "客服", "油腻", "异味", "泪痕", "便臭",
   "活动价", "划算", "毛发", "换粮", "日期新鲜", "封口",
 ];
 
@@ -17,32 +17,19 @@ const ratingMap = {
 
 async function realtimeSync({ skus, pagesPerRating = 1, pageSize = 10, deepseekApiKey = "", deepseekModel = "deepseek-chat" }) {
   const activeSkus = (skus || []).filter((sku) => sku.status !== "inactive");
-  const reviews = [];
-  const errors = [];
+  const pages = Math.max(1, Number(pagesPerRating || 1));
+  const size = Math.max(1, Number(pageSize || 10));
 
-  for (const sku of activeSkus) {
-    const productId = sku.jdSkuId || extractSkuId(sku.url);
-    for (const bucket of ratingBuckets()) {
-      for (let page = 0; page < pagesPerRating; page += 1) {
-        try {
-          const payload = await fetchJdCommentPage({ productId, score: bucket.score, page, pageSize });
-          const comments = Array.isArray(payload.comments) ? payload.comments : [];
-          comments.forEach((comment, index) => {
-            const review = normalizeJdComment({ sku, comment, bucket, page, index, productId });
-            if (review) reviews.push(review);
-          });
-        } catch (error) {
-          errors.push({ skuId: sku.id, productId, ratingType: bucket.ratingType, page, message: error.message });
-        }
-      }
-    }
-  }
+  // 多 SKU 并发抓取；单个 SKU 内部也并发请求好/中/差评分页。
+  const settled = await Promise.all(activeSkus.map((sku) => fetchSkuReviews({ sku, pagesPerRating: pages, pageSize: size })));
+  const reviews = settled.flatMap((item) => item.reviews);
+  const errors = settled.flatMap((item) => item.errors);
 
   let deduped = dedupeReviews(reviews);
   let sourceMode = "jd-live";
 
   if (!deduped.length && activeSkus.length) {
-    deduped = generateFallbackReviews(activeSkus, Math.min(Math.max(pageSize, 6), 12));
+    deduped = generateFallbackReviews(activeSkus, Math.min(Math.max(size, 6), 12));
     sourceMode = "jd-fallback";
   }
 
@@ -69,6 +56,42 @@ async function realtimeSync({ skus, pagesPerRating = 1, pageSize = 10, deepseekA
       mode: sourceMode,
       ...deepseekAnalysis,
     },
+  };
+}
+
+async function fetchSkuReviews({ sku, pagesPerRating, pageSize }) {
+  const productId = sku.jdSkuId || extractSkuId(sku.url);
+  const jobs = [];
+  for (const bucket of ratingBuckets()) {
+    for (let page = 0; page < pagesPerRating; page += 1) {
+      jobs.push({ sku, productId, bucket, page, pageSize });
+    }
+  }
+
+  const settled = await Promise.all(jobs.map(async (job) => {
+    try {
+      const payload = await fetchJdCommentPage({
+        productId: job.productId,
+        score: job.bucket.score,
+        page: job.page,
+        pageSize: job.pageSize,
+      });
+      const comments = Array.isArray(payload.comments) ? payload.comments : [];
+      return {
+        reviews: comments.map((comment, index) => normalizeJdComment({ ...job, comment, index })).filter(Boolean),
+        errors: [],
+      };
+    } catch (error) {
+      return {
+        reviews: [],
+        errors: [{ skuId: sku.id, productId, ratingType: job.bucket.ratingType, page: job.page, message: error.message }],
+      };
+    }
+  }));
+
+  return {
+    reviews: settled.flatMap((item) => item.reviews),
+    errors: settled.flatMap((item) => item.errors),
   };
 }
 
@@ -133,13 +156,12 @@ async function analyzeBadReviewsWithDeepSeek({ reviews, apiKey, model }) {
   if (!apiKey || !reviews.length) return fallback;
 
   const prompt = [
-    "你是宠物食品品牌运营分析师。请分析京东狗粮差评，只输出 JSON。",
-    "JSON 字段：summary、domainAnalysis、risk_points、pendingTerms。",
-    "domainAnalysis 每项包含 domain、topic、riskLevel、reason、evidenceReviewIds。",
-    "pendingTerms 只放未命中知识库但值得人工审核的新表达，不要自动入库。",
-    "risk_level 只能是 high、medium、low。reviewUrl 必须优先使用输入评论里的 reviewUrl。",
-    "不要输出 Markdown。",
+    "你是宠物食品 VOC 品控风险归因助手。请分析京东差评，只输出 JSON，不输出 Markdown。",
+    "边界：AI 只提供辅助归因、风险摘要、证据整理和排查建议，不直接判定产品质量，不替代品控或研发判断。",
+    "必须输出可 JSON.parse 的对象，字段包含：riskTheme、riskLevel、evidenceReviewIds、suggestedAction、pendingTerms、domainAnalysis、risk_points。",
+    "每条结论必须带 evidenceReviewIds，reviewUrl 必须优先使用输入评论里的 reviewUrl。",
     JSON.stringify(reviews.slice(0, 80).map((review) => ({
+      reviewId: review.id,
       skuId: review.skuId,
       skuName: review.skuName,
       date: review.date,
@@ -148,7 +170,7 @@ async function analyzeBadReviewsWithDeepSeek({ reviews, apiKey, model }) {
       knowledgeMatches: review.knowledgeMatches,
       productUrl: review.productUrl,
       reviewUrl: review.reviewUrl,
-    }))),
+    })), null, 2),
   ].join("\n");
 
   try {
@@ -179,28 +201,39 @@ function normalizeDeepSeekAnalysis(parsed, fallback, reviews) {
   const points = Array.isArray(parsed.risk_points) ? parsed.risk_points : [];
   return {
     provider: "deepseek",
+    riskTheme: parsed.riskTheme || fallback.riskTheme,
+    riskLevel: normalizeRisk(parsed.riskLevel || fallback.riskLevel),
+    evidenceReviewIds: Array.isArray(parsed.evidenceReviewIds) ? parsed.evidenceReviewIds : fallback.evidenceReviewIds,
+    suggestedAction: parsed.suggestedAction || fallback.suggestedAction,
     summary: parsed.summary || fallback.summary,
     domainAnalysis: Array.isArray(parsed.domainAnalysis) ? parsed.domainAnalysis : fallback.domainAnalysis,
     pendingTerms: Array.isArray(parsed.pendingTerms) ? parsed.pendingTerms : fallback.pendingTerms,
     risk_points: points.length ? points.map((point) => {
-      const matchedReview = reviews.find((review) => {
-        const evidence = String(point.evidence || "");
-        return evidence && (review.content.includes(evidence.slice(0, 12)) || evidence.includes(review.content.slice(0, 12)));
-      }) || reviews.find((review) => review.keywords.includes(point.keyword)) || reviews[0];
-
+      const matchedReview = findEvidenceReview(point, reviews);
       return {
         keyword: point.keyword || matchedReview?.keywords?.[0] || "差评风险",
         skuId: matchedReview?.skuId || point.skuId || "",
-        risk_level: String(point.risk_level || "medium").toLowerCase(),
-        reason: point.reason || "差评中出现相关问题描述",
+        risk_level: normalizeRisk(point.risk_level || point.riskLevel || "medium"),
+        reason: point.reason || "差评中出现相关问题描述。",
         evidence: point.evidence || matchedReview?.content || "",
         skuName: point.skuName || matchedReview?.skuName || "",
         productUrl: matchedReview?.productUrl || normalizeProductUrl(point.productUrl || point.reviewUrl || ""),
         reviewUrl: normalizeReviewUrl(point.reviewUrl, matchedReview),
-        suggestion: point.suggestion || "建议运营先核对原始评论，再联动客服或品控跟进。",
+        suggestion: point.suggestion || point.suggestedAction || "建议先核对原始评论证据，再联动客服、品控或供应链排查。",
       };
     }) : fallback.risk_points,
   };
+}
+
+function findEvidenceReview(point, reviews) {
+  const ids = Array.isArray(point.evidenceReviewIds) ? point.evidenceReviewIds.map(String) : [];
+  return reviews.find((review) => ids.includes(review.id)) ||
+    reviews.find((review) => {
+      const evidence = String(point.evidence || "");
+      return evidence && (review.content.includes(evidence.slice(0, 12)) || evidence.includes(review.content.slice(0, 12)));
+    }) ||
+    reviews.find((review) => review.keywords.includes(point.keyword)) ||
+    reviews[0];
 }
 
 function localBadReviewAnalysis(reviews) {
@@ -227,17 +260,22 @@ function localBadReviewAnalysis(reviews) {
       count,
       skuId: sourceReview?.skuId || "",
       risk_level: sensitiveKeywords.includes(keyword) ? "high" : "medium",
-      reason: `差评中出现 ${count} 次`,
+      reason: `差评中出现 ${count} 次。`,
       evidence: sourceReview?.content || "",
       skuName: sourceReview?.skuName || "",
       productUrl: sourceReview?.productUrl || "",
       reviewUrl: sourceReview?.reviewUrl || "",
-      suggestion: "建议运营先核对原始评论证据，再联动客服、品控或物流侧排查。",
+      suggestion: "建议先核对原始评论证据，再联动客服、品控或供应链排查。",
     };
   });
 
+  const topPoint = riskPoints[0] || null;
   return {
     provider: "local-fallback",
+    riskTheme: topPoint?.keyword || "暂无明显风险",
+    riskLevel: normalizeRisk(topPoint?.risk_level || "low"),
+    evidenceReviewIds: reviews.slice(0, 5).map((review) => review.id),
+    suggestedAction: topPoint?.suggestion || "继续监控新增差评和知识库命中情况。",
     summary: reviews.length
       ? `本次实时抓取到 ${reviews.length} 条差评，主要风险集中在 ${riskPoints.slice(0, 3).map((item) => item.keyword).join("、") || "暂无明显关键词"}。`
       : "本次没有抓取到差评。",
@@ -256,9 +294,13 @@ function localBadReviewAnalysis(reviews) {
 function pendingTermsFromReviews(reviews) {
   const known = new Set(loadKnowledgeBase().flatMap((entry) => [entry.standardKeyword].concat(entry.aliases || [])));
   const counts = new Map();
+  const evidence = new Map();
   reviews.forEach((review) => {
     review.keywords.forEach((keyword) => {
-      if (!known.has(keyword)) counts.set(keyword, (counts.get(keyword) || 0) + 1);
+      if (known.has(keyword)) return;
+      counts.set(keyword, (counts.get(keyword) || 0) + 1);
+      if (!evidence.has(keyword)) evidence.set(keyword, []);
+      evidence.get(keyword).push(review.id);
     });
   });
   return [...counts.entries()].filter(([, count]) => count >= 2).slice(0, 5).map(([rawTerm, count]) => ({
@@ -267,27 +309,28 @@ function pendingTermsFromReviews(reviews) {
     suggestedDomain: "待判断",
     suggestedTopic: "待判断",
     reason: `差评中出现 ${count} 次，建议到 Obsidian 审核。`,
+    evidenceReviewIds: [...new Set(evidence.get(rawTerm) || [])].slice(0, 5),
   }));
 }
 
 function generateFallbackReviews(skus, pageSize) {
-  const today = new Date();
+  const todayDate = new Date();
   const templates = {
     good: [
-      "活动价很划算，日期新鲜，狗狗适口性不错，后续会复购。",
+      "活动价很划算，日期新鲜，适口性不错，后续会复购。",
       "包装完整，颗粒大小合适，换粮后便便状态比较稳定。",
-      "物流很快，封口方便，狗狗吃得挺香。",
+      "物流很快，封口方便，吃得挺香。",
     ],
     neutral: [
       "颗粒有点大，小型犬吃起来慢，适口性一般。",
       "包装没有破损，但日期不是特别新鲜，希望后面能改善。",
-      "油腻感比之前重一点，狗狗吃得不算积极。",
+      "油腻感比之前重一点，吃得不算积极。",
     ],
     bad: [
       "最近这款狗粮狗不吃，打开后异味明显，客服回复也比较慢。",
-      "狗狗吃完出现软便和拉稀，怀疑换粮不适，希望运营尽快看一下。",
+      "吃完出现软便和拉稀，怀疑换粮不适，希望运营尽快看一下。",
       "包装破损，里面有结块，日期也临期，不太敢继续喂。",
-      "颗粒太大，狗狗咬不动，吃了还呕吐了一次。",
+      "颗粒太大，咬不动，吃了还呕吐了一次。",
     ],
   };
 
@@ -299,8 +342,8 @@ function generateFallbackReviews(skus, pageSize) {
       for (let index = 0; index < count; index += 1) {
         const content = list[(index + skuIndex) % list.length];
         const reviewId = `fallback-${sku.id}-${ratingType}-${Date.now()}-${index}`;
-        const date = new Date(today);
-        date.setDate(today.getDate() - ((skuIndex + index) % 5));
+        const date = new Date(todayDate);
+        date.setDate(todayDate.getDate() - ((skuIndex + index) % 5));
         const knowledgeMatches = matchKnowledge(content);
         reviews.push({
           id: `jd-${sku.id}-${reviewId}`,
@@ -310,7 +353,7 @@ function generateFallbackReviews(skus, pageSize) {
           content,
           ratingType,
           date: formatDate(date),
-          crawledAt: formatDate(today),
+          crawledAt: formatDate(todayDate),
           user: `京***${index + 1}`,
           keywords: extractKeywords(content),
           knowledgeMatches,
@@ -345,7 +388,7 @@ function parseJsonOrJsonp(text) {
   const jsonText = trimmed.startsWith("{") ? trimmed : trimmed.replace(/^[^(]*\(/, "").replace(/\);?$/, "");
   try {
     return JSON.parse(jsonText);
-  } catch (error) {
+  } catch {
     throw new Error(`京东评论接口返回非 JSON：${trimmed.slice(0, 24)}`);
   }
 }
@@ -422,9 +465,15 @@ function stripJsonFence(value) {
   return String(value).replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
 }
 
+function normalizeRisk(value) {
+  const text = String(value || "").toLowerCase();
+  if (["high", "medium", "low"].includes(text)) return text;
+  return "medium";
+}
+
 module.exports = {
-  realtimeSync,
-  fetchJdCommentPage,
   analyzeBadReviewsWithDeepSeek,
   extractKeywords,
+  fetchJdCommentPage,
+  realtimeSync,
 };

@@ -1,201 +1,305 @@
-[
-  {
-    "id": "kb-gi-diarrhea",
-    "domain": "肠胃反应",
-    "topic": "腹泻软便",
-    "standardKeyword": "拉稀",
-    "aliases": [
-      "腹泻",
-      "窜稀",
-      "便便稀",
-      "拉肚子",
-      "吃完拉肚子",
-      "软便"
-    ],
-    "riskLevel": "high",
-    "owner": "品控/商品运营",
-    "enabled": true,
-    "graphTags": [
-      "sku",
-      "batch",
-      "formula"
-    ],
-    "suggestion": "核对 SKU、批次、换粮周期，并查看是否集中爆发。"
-  },
-  {
-    "id": "kb-gi-vomit",
-    "domain": "肠胃反应",
-    "topic": "呕吐反应",
-    "standardKeyword": "呕吐",
-    "aliases": [
-      "吐了",
-      "吃完吐",
-      "反胃",
-      "干呕"
-    ],
-    "riskLevel": "high",
-    "owner": "品控/商品运营",
-    "enabled": true,
-    "graphTags": [
-      "sku",
-      "batch",
-      "formula"
-    ],
-    "suggestion": "优先核对配方变化、换粮说明和近期批次反馈。"
-  },
-  {
-    "id": "kb-logistics-slow",
-    "domain": "物流履约",
-    "topic": "物流延迟",
-    "standardKeyword": "物流慢",
-    "aliases": [
-      "发货慢",
-      "到货慢",
-      "配送慢",
-      "物流延迟",
-      "晚到"
-    ],
-    "riskLevel": "medium",
-    "owner": "仓配/物流",
-    "enabled": true,
-    "graphTags": [
-      "logistics",
-      "warehouse"
-    ],
-    "suggestion": "检查大促、区域仓和承运商履约表现。"
-  },
-  {
-    "id": "kb-package-broken",
-    "domain": "包装问题",
-    "topic": "包装破损",
-    "standardKeyword": "包装破损",
-    "aliases": [
-      "破袋",
-      "漏袋",
-      "外箱破",
-      "包装压坏",
-      "封口坏",
-      "封口差"
-    ],
-    "riskLevel": "medium",
-    "owner": "仓配/供应链",
-    "enabled": true,
-    "graphTags": [
-      "warehouse",
-      "logistics",
-      "package"
-    ],
-    "suggestion": "联动仓配排查包材、装箱和物流环节。"
-  },
-  {
-    "id": "kb-palatability-reject",
-    "domain": "适口性问题",
-    "topic": "拒食不吃",
-    "standardKeyword": "狗不吃",
-    "aliases": [
-      "不吃",
-      "不爱吃",
-      "闻了就走",
-      "一口不碰",
-      "没兴趣",
-      "挑食不吃",
-      "吃得少"
-    ],
-    "riskLevel": "high",
-    "owner": "商品运营",
-    "enabled": true,
-    "graphTags": [
-      "sku",
-      "formula",
-      "palatability"
-    ],
-    "suggestion": "核对 SKU 配方、适口性反馈和是否集中在换粮用户。"
-  },
-  {
-    "id": "kb-price-promo",
-    "domain": "价格活动",
-    "topic": "价格波动",
-    "standardKeyword": "涨价",
-    "aliases": [
-      "贵了",
-      "价格高",
-      "活动价",
-      "不划算",
-      "价保"
-    ],
-    "riskLevel": "low",
-    "owner": "品牌运营",
-    "enabled": true,
-    "graphTags": [
-      "campaign",
-      "price"
-    ],
-    "suggestion": "关注活动前后价格预期和价保解释口径。"
-  },
-  {
-    "id": "kb-quality-date",
-    "domain": "质量疑虑",
-    "topic": "日期临期",
-    "standardKeyword": "临期",
-    "aliases": [
-      "日期不新鲜",
-      "快过期",
-      "保质期短",
-      "旧日期"
-    ],
-    "riskLevel": "high",
-    "owner": "供应链/仓配",
-    "enabled": true,
-    "graphTags": [
-      "batch",
-      "warehouse",
-      "inventory"
-    ],
-    "suggestion": "核对库存周转和发货批次，必要时调整仓库拣货策略。"
-  },
-  {
-    "id": "kb-quality-smell",
-    "domain": "质量疑虑",
-    "topic": "异味变质",
-    "standardKeyword": "异味",
-    "aliases": [
-      "味道怪",
-      "臭味",
-      "油味重",
-      "发霉",
-      "变质",
-      "结块",
-      "虫子"
-    ],
-    "riskLevel": "high",
-    "owner": "品控",
-    "enabled": true,
-    "graphTags": [
-      "batch",
-      "warehouse",
-      "quality"
-    ],
-    "suggestion": "优先核对批次、仓储温湿度、临期和开袋状态。"
-  },
-  {
-    "id": "kb-service-slow",
-    "domain": "客服体验",
-    "topic": "客服响应慢",
-    "standardKeyword": "客服慢",
-    "aliases": [
-      "客服",
-      "回复慢",
-      "没人处理",
-      "售后慢",
-      "客服不理"
-    ],
-    "riskLevel": "medium",
-    "owner": "客服运营",
-    "enabled": true,
-    "graphTags": [
-      "service",
-      "sla"
-    ],
-    "suggestion": "核对客服响应 SLA，沉淀高频问题话术。"
-  }
-]
+{
+  "exportedAt": "2026-06-11T14:37:54.157Z",
+  "source": "obsidian-vault",
+  "inventory": [
+    {
+      "folder": "01_domain_knowledge",
+      "path": "obsidian-vault\\01_domain_knowledge",
+      "exists": true,
+      "fileCount": 1,
+      "noteCount": 0,
+      "jsonCount": 1
+    },
+    {
+      "folder": "02_pending_terms",
+      "path": "obsidian-vault\\02_pending_terms",
+      "exists": true,
+      "fileCount": 1,
+      "noteCount": 0,
+      "jsonCount": 1
+    },
+    {
+      "folder": "02_mock_reviews",
+      "path": "obsidian-vault\\02_mock_reviews",
+      "exists": true,
+      "fileCount": 0,
+      "noteCount": 0,
+      "jsonCount": 0
+    },
+    {
+      "folder": "03_eval_sets",
+      "path": "obsidian-vault\\03_eval_sets",
+      "exists": true,
+      "fileCount": 0,
+      "noteCount": 0,
+      "jsonCount": 0
+    },
+    {
+      "folder": "04_bad_cases",
+      "path": "obsidian-vault\\04_bad_cases",
+      "exists": true,
+      "fileCount": 0,
+      "noteCount": 0,
+      "jsonCount": 0
+    },
+    {
+      "folder": "05_pending_terms",
+      "path": "obsidian-vault\\05_pending_terms",
+      "exists": true,
+      "fileCount": 1,
+      "noteCount": 1,
+      "jsonCount": 0
+    },
+    {
+      "folder": "06_prompts",
+      "path": "obsidian-vault\\06_prompts",
+      "exists": true,
+      "fileCount": 0,
+      "noteCount": 0,
+      "jsonCount": 0
+    },
+    {
+      "folder": "07_product_notes",
+      "path": "obsidian-vault\\07_product_notes",
+      "exists": true,
+      "fileCount": 0,
+      "noteCount": 0,
+      "jsonCount": 0
+    },
+    {
+      "folder": "02-keywords",
+      "path": "obsidian-vault\\02-keywords",
+      "exists": true,
+      "fileCount": 9,
+      "noteCount": 9,
+      "jsonCount": 0
+    },
+    {
+      "folder": "03-pending",
+      "path": "obsidian-vault\\03-pending",
+      "exists": true,
+      "fileCount": 0,
+      "noteCount": 0,
+      "jsonCount": 0
+    }
+  ],
+  "entries": [
+    {
+      "id": "kb-package-broken",
+      "domain": "包装问题",
+      "topic": "包装破损",
+      "standardKeyword": "包装破损",
+      "aliases": [
+        "破袋",
+        "漏袋",
+        "外箱破",
+        "包装压坏",
+        "封口坏",
+        "封口差"
+      ],
+      "riskLevel": "medium",
+      "owner": "仓配/供应链",
+      "suggestion": "联动仓配排查包材、装箱和物流环节。",
+      "enabled": true,
+      "graphTags": [
+        "warehouse",
+        "logistics",
+        "package"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    },
+    {
+      "id": "kb-gi-diarrhea",
+      "domain": "肠胃反应",
+      "topic": "腹泻软便",
+      "standardKeyword": "拉稀",
+      "aliases": [
+        "腹泻",
+        "窜稀",
+        "便便稀",
+        "拉肚子",
+        "吃完拉肚子",
+        "软便"
+      ],
+      "riskLevel": "high",
+      "owner": "品控/商品运营",
+      "suggestion": "核对 SKU、批次、换粮周期，并查看是否集中爆发。",
+      "enabled": true,
+      "graphTags": [
+        "sku",
+        "batch",
+        "formula"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    },
+    {
+      "id": "kb-gi-vomit",
+      "domain": "肠胃反应",
+      "topic": "呕吐反应",
+      "standardKeyword": "呕吐",
+      "aliases": [
+        "吐了",
+        "吃完吐",
+        "反胃",
+        "干呕"
+      ],
+      "riskLevel": "high",
+      "owner": "品控/商品运营",
+      "suggestion": "优先核对配方变化、换粮说明和近期批次反馈。",
+      "enabled": true,
+      "graphTags": [
+        "sku",
+        "batch",
+        "formula"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    },
+    {
+      "id": "kb-price-promo",
+      "domain": "价格活动",
+      "topic": "价格波动",
+      "standardKeyword": "涨价",
+      "aliases": [
+        "贵了",
+        "价格高",
+        "活动价",
+        "不划算",
+        "价保"
+      ],
+      "riskLevel": "low",
+      "owner": "品牌运营",
+      "suggestion": "关注活动前后价格预期和价保解释口径。",
+      "enabled": true,
+      "graphTags": [
+        "campaign",
+        "price"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    },
+    {
+      "id": "kb-service-slow",
+      "domain": "客服体验",
+      "topic": "客服响应慢",
+      "standardKeyword": "客服慢",
+      "aliases": [
+        "客服",
+        "回复慢",
+        "没人处理",
+        "售后慢",
+        "客服不理"
+      ],
+      "riskLevel": "medium",
+      "owner": "客服运营",
+      "suggestion": "核对客服响应 SLA，沉淀高频问题话术。",
+      "enabled": true,
+      "graphTags": [
+        "service",
+        "sla"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    },
+    {
+      "id": "kb-palatability-reject",
+      "domain": "适口性问题",
+      "topic": "拒食不吃",
+      "standardKeyword": "狗不吃",
+      "aliases": [
+        "不吃",
+        "不爱吃",
+        "闻了就走",
+        "一口不碰",
+        "没兴趣",
+        "挑食不吃",
+        "吃得少"
+      ],
+      "riskLevel": "high",
+      "owner": "商品运营",
+      "suggestion": "核对 SKU 配方、适口性反馈和是否集中在换粮用户。",
+      "enabled": true,
+      "graphTags": [
+        "sku",
+        "formula",
+        "palatability"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    },
+    {
+      "id": "kb-logistics-slow",
+      "domain": "物流履约",
+      "topic": "物流延迟",
+      "standardKeyword": "物流慢",
+      "aliases": [
+        "发货慢",
+        "到货慢",
+        "配送慢",
+        "物流延迟",
+        "晚到"
+      ],
+      "riskLevel": "medium",
+      "owner": "仓配/物流",
+      "suggestion": "检查大促、区域仓和承运商履约表现。",
+      "enabled": true,
+      "graphTags": [
+        "logistics",
+        "warehouse"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    },
+    {
+      "id": "kb-quality-date",
+      "domain": "质量疑虑",
+      "topic": "日期临期",
+      "standardKeyword": "临期",
+      "aliases": [
+        "日期不新鲜",
+        "快过期",
+        "保质期短",
+        "旧日期"
+      ],
+      "riskLevel": "high",
+      "owner": "供应链/仓配",
+      "suggestion": "核对库存周转和发货批次，必要时调整仓库拣货策略。",
+      "enabled": true,
+      "graphTags": [
+        "batch",
+        "warehouse",
+        "inventory"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    },
+    {
+      "id": "kb-quality-smell",
+      "domain": "质量疑虑",
+      "topic": "异味变质",
+      "standardKeyword": "异味",
+      "aliases": [
+        "味道怪",
+        "臭味",
+        "油味重",
+        "发霉",
+        "变质",
+        "结块",
+        "虫子"
+      ],
+      "riskLevel": "high",
+      "owner": "品控",
+      "suggestion": "优先核对批次、仓储温湿度、临期和开袋状态。",
+      "enabled": true,
+      "graphTags": [
+        "batch",
+        "warehouse",
+        "quality"
+      ],
+      "sourceFile": "",
+      "source": "obsidian-json"
+    }
+  ]
+}

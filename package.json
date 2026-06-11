@@ -2,10 +2,11 @@
   "name": "maifudi-jd-review-dashboard",
   "version": "1.0.0",
   "private": true,
-  "description": "Maifudi dog food JD review dashboard MVP with a local Node backend.",
+  "description": "AI-driven VOC quality risk attribution and R&D collaboration system.",
   "scripts": {
     "build": "node scripts/build-static.js",
     "export:knowledge": "node scripts/export-obsidian-knowledge.js",
+    "verify:voc": "node scripts/verify-voc-flow.js",
     "start": "node backend/server.js"
   },
   "engines": {
