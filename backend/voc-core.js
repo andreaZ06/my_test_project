@@ -17,70 +17,72 @@ const { realtimeSync } = require("./jd-realtime");
 const ROOT = path.resolve(__dirname, "..");
 const OBSIDIAN_ROOT = path.join(ROOT, "obsidian-vault");
 const SENSITIVE_KEYWORDS = [
-  "拉稀",
-  "软便",
-  "呕吐",
-  "过敏",
-  "假货",
-  "变质",
-  "虫子",
-  "发霉",
-  "临期",
-  "不吃",
-  "狗不吃",
-  "包装破损",
-  "漏袋",
-  "异味",
-  "客服慢",
-  "物流慢",
+  "\u62c9\u7a00",
+  "\u8f6f\u4fbf",
+  "\u5455\u5410",
+  "\u8fc7\u654f",
+  "\u5047\u8d27",
+  "\u53d8\u8d28",
+  "\u866b\u5b50",
+  "\u53d1\u9709",
+  "\u4e34\u671f",
+  "\u4e0d\u5403",
+  "\u72d7\u4e0d\u5403",
+  "\u5305\u88c5\u7834\u635f",
+  "\u6f0f\u888b",
+  "\u5f02\u5473",
+  "\u5ba2\u670d\u6162",
+  "\u7269\u6d41\u6162",
 ];
 
 const DOMAIN_OWNER = {
-  "肠胃反应": "品控 / 研发",
-  "适口性问题": "商品运营 / 研发",
-  "包装问题": "品控 / 包材",
-  "物流履约": "供应链 / 仓配",
-  "客服体验": "客服运营",
-  "价格活动": "电商运营",
-  "质量疑虑": "品控 / 供应链",
-  "商品信息": "电商运营",
-  "正向反馈": "品牌运营",
+  "\u80a0\u80c3\u53cd\u5e94": "\u54c1\u63a7 / \u7814\u53d1",
+  "\u9002\u53e3\u6027\u95ee\u9898": "\u5546\u54c1\u8fd0\u8425 / \u7814\u53d1",
+  "\u5305\u88c5\u95ee\u9898": "\u54c1\u63a7 / \u5305\u6750",
+  "\u7269\u6d41\u5c65\u7ea6": "\u4f9b\u5e94\u94fe / \u4ed3\u914d",
+  "\u5ba2\u670d\u4f53\u9a8c": "\u5ba2\u670d\u8fd0\u8425",
+  "\u4ef7\u683c\u6d3b\u52a8": "\u7535\u5546\u8fd0\u8425",
+  "\u8d28\u91cf\u7591\u8651": "\u54c1\u63a7 / \u4f9b\u5e94\u94fe",
+  "\u5546\u54c1\u4fe1\u606f": "\u7535\u5546\u8fd0\u8425",
+  "\u6b63\u5411\u53cd\u9988": "\u54c1\u724c\u8fd0\u8425",
 };
 
 const FALLBACK_ACTIONS = {
-  "肠胃反应": "核对 SKU、批次、换粮周期，并优先排查是否集中爆发。",
-  "适口性问题": "检查配方切换、颗粒形态、试吃反馈和换粮教育话术。",
-  "包装问题": "联动包材与仓配，复核封口、压损和漏袋节点。",
-  "物流履约": "核查物流时效、破损责任与仓库出库环节。",
-  "客服体验": "同步客服 SLA 与标准答复话术，避免二次扩散。",
-  "价格活动": "检查促销节奏、价保规则和活动页展示。",
-  "质量疑虑": "优先拉取批次、仓储与原料记录，确认是否需要立项。",
-  "商品信息": "核对详情页、SKU 命名与卖点展示是否误导。",
-  "正向反馈": "保留为复购证据，沉淀卖点和评价样本。",
+  "\u80a0\u80c3\u53cd\u5e94": "\u6838\u5bf9 SKU\u3001\u6279\u6b21\u3001\u6362\u7cae\u5468\u671f\uff0c\u5e76\u4f18\u5148\u6392\u67e5\u662f\u5426\u96c6\u4e2d\u7206\u53d1\u3002",
+  "\u9002\u53e3\u6027\u95ee\u9898": "\u68c0\u67e5\u914d\u65b9\u5207\u6362\u3001\u9897\u7c92\u5f62\u6001\u3001\u8bd5\u5403\u53cd\u9988\u548c\u6362\u7cae\u6559\u80b2\u8bdd\u672f\u3002",
+  "\u5305\u88c5\u95ee\u9898": "\u8054\u52a8\u5305\u6750\u4e0e\u4ed3\u914d\uff0c\u590d\u6838\u5c01\u53e3\u3001\u538b\u635f\u548c\u6f0f\u888b\u8282\u70b9\u3002",
+  "\u7269\u6d41\u5c65\u7ea6": "\u6838\u67e5\u7269\u6d41\u65f6\u6548\u3001\u7834\u635f\u8d23\u4efb\u4e0e\u4ed3\u5e93\u51fa\u5e93\u73af\u8282\u3002",
+  "\u5ba2\u670d\u4f53\u9a8c": "\u540c\u6b65\u5ba2\u670d SLA \u4e0e\u6807\u51c6\u7b54\u590d\u8bdd\u672f\uff0c\u907f\u514d\u4e8c\u6b21\u6269\u6563\u3002",
+  "\u4ef7\u683c\u6d3b\u52a8": "\u68c0\u67e5\u4fc3\u9500\u8282\u594f\u3001\u4ef7\u4fdd\u89c4\u5219\u548c\u6d3b\u52a8\u9875\u5c55\u793a\u3002",
+  "\u8d28\u91cf\u7591\u8651": "\u4f18\u5148\u62c9\u53d6\u6279\u6b21\u3001\u4ed3\u50a8\u4e0e\u539f\u6599\u8bb0\u5f55\uff0c\u786e\u8ba4\u662f\u5426\u9700\u8981\u7acb\u9879\u3002",
+  "\u5546\u54c1\u4fe1\u606f": "\u6838\u5bf9\u8be6\u60c5\u9875\u3001SKU \u547d\u540d\u4e0e\u5356\u70b9\u5c55\u793a\u662f\u5426\u8bef\u5bfc\u3002",
+  "\u6b63\u5411\u53cd\u9988": "\u4fdd\u7559\u4e3a\u590d\u8d2d\u8bc1\u636e\uff0c\u6c89\u6dc0\u5356\u70b9\u548c\u8bc4\u4ef7\u6837\u672c\u3002",
 };
 
 const COMMON_PENDING_TERMS = [
-  "闻了就走",
-  "一口不碰",
-  "挑食不吃",
-  "吃完就拉稀",
-  "便便发软",
-  "打开有异味",
-  "封口松",
-  "漏气",
-  "压坏",
-  "掉毛",
-  "不消化",
-  "换粮失败",
+  "\u95fb\u4e86\u5c31\u8d70",
+  "\u4e00\u53e3\u4e0d\u78b0",
+  "\u6311\u98df\u4e0d\u5403",
+  "\u5403\u5b8c\u5c31\u62c9\u7a00",
+  "\u4fbf\u4fbf\u53d1\u8f6f",
+  "\u6253\u5f00\u6709\u5f02\u5473",
+  "\u5c01\u53e3\u677e",
+  "\u6f0f\u6c14",
+  "\u538b\u574f",
+  "\u6389\u6bdb",
+  "\u4e0d\u6d88\u5316",
+  "\u6362\u7cae\u5931\u8d25",
 ];
-
 async function handleApiRequest({ method, pathname, body = {}, query = {} }) {
   const route = String(pathname || "").replace(/^\/api/, "");
+  const skuItemMatch = route.match(/^\/skus\/([^/]+)$/);
 
   if (method === "GET" && route === "/health") return ok(await awaitableHealth());
   if (method === "GET" && route === "/skus") return ok(await awaitableSkus());
   if (method === "POST" && route === "/skus") return ok(await awaitableSaveSkus(body));
   if (method === "PUT" && route === "/skus") return ok(await awaitableSaveSkus(body));
+  if (skuItemMatch && method === "PUT") return ok(await awaitableUpdateSku(decodeURIComponent(skuItemMatch[1]), body));
+  if (skuItemMatch && method === "DELETE") return ok(await awaitableDeleteSku(decodeURIComponent(skuItemMatch[1])));
   if (method === "GET" && route === "/crawl-config") return ok(await awaitableCrawlConfig());
   if (method === "PUT" && route === "/crawl-config") return ok(await awaitableSaveCrawlConfig(body));
   if (method === "GET" && route === "/dashboard") return ok(await awaitableDashboard(query));
@@ -144,7 +146,7 @@ function corsHeaders() {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   };
 }
 
@@ -177,7 +179,45 @@ async function awaitableSaveSkus(body) {
   const skus = storeData.normalizeSkus(Array.isArray(body.skus) ? body.skus : []);
   const store = await storeData.updateSkusAsync(skus);
   return {
+    success: true,
+    data: {
+      skus: store.skus,
+      updatedAt: store.updatedAt,
+    },
     ok: true,
+    skus: store.skus,
+    updatedAt: store.updatedAt,
+  };
+}
+
+async function awaitableUpdateSku(id, body) {
+  const store = await storeData.updateSkuAsync(id, body || {});
+  const sku = store.skus.find((item) => item.id === id) || null;
+  return {
+    success: true,
+    data: {
+      sku,
+      skus: store.skus,
+      updatedAt: store.updatedAt,
+    },
+    ok: true,
+    sku,
+    skus: store.skus,
+    updatedAt: store.updatedAt,
+  };
+}
+
+async function awaitableDeleteSku(id) {
+  const store = await storeData.deleteSkuAsync(id);
+  return {
+    success: true,
+    data: {
+      deletedId: id,
+      skus: store.skus,
+      updatedAt: store.updatedAt,
+    },
+    ok: true,
+    deletedId: id,
     skus: store.skus,
     updatedAt: store.updatedAt,
   };
@@ -846,17 +886,27 @@ function buildRDSuggestions(alerts, domainSummary) {
 }
 
 function extractPendingTerms(reviews, knowledgeBase, storePendingTerms = []) {
-  const known = new Set(
-    activeKnowledgeBase(knowledgeBase).flatMap((entry) => [entry.standardKeyword].concat(entry.aliases || []))
-  );
-  const counts = new Map();
-  const phrases = new Set(COMMON_PENDING_TERMS);
+  const knownTerms = new Set();
+  knowledgeBase.forEach((entry) => {
+    knownTerms.add(entry.standardKeyword);
+    (entry.aliases || []).forEach((alias) => knownTerms.add(alias));
+  });
 
+  const phrases = new Set(COMMON_PENDING_TERMS);
   reviews.forEach((review) => {
     const content = String(review.content || "");
-    phrases.forEach((term) => {
-      if (content.includes(term) && !known.has(term)) {
-        counts.set(term, (counts.get(term) || 0) + 1);
+    content.split(/[\s,\uFF0C\u3002\uFF1B;\u3001\uFF01!\uFF1F?]+/).forEach((token) => {
+      const value = token.trim();
+      if (value.length >= 2 && value.length <= 8) phrases.add(value);
+    });
+  });
+
+  const counts = new Map();
+  reviews.filter((review) => review.ratingType === "bad").forEach((review) => {
+    const content = String(review.content || "");
+    phrases.forEach((phrase) => {
+      if (!knownTerms.has(phrase) && content.includes(phrase)) {
+        counts.set(phrase, (counts.get(phrase) || 0) + 1);
       }
     });
   });
@@ -869,7 +919,7 @@ function extractPendingTerms(reviews, knowledgeBase, storePendingTerms = []) {
       suggestedKeyword: rawTerm,
       suggestedDomain: inferDomainFromTerm(rawTerm),
       suggestedTopic: inferTopicFromTerm(rawTerm),
-      reason: `该表达在差评中出现 ${count} 次，建议人工审核后再纳入正式知识库。`,
+      reason: `\u8be5\u8868\u8fbe\u5728\u5dee\u8bc4\u4e2d\u51fa\u73b0 ${count} \u6b21\uff0c\u5efa\u8bae\u4eba\u5de5\u5ba1\u6838\u540e\u518d\u7eb3\u5165\u6b63\u5f0f\u77e5\u8bc6\u5e93\u3002`,
       evidenceReviewIds: reviews
         .filter((review) => String(review.content || "").includes(rawTerm))
         .slice(0, 5)
@@ -885,28 +935,32 @@ function extractPendingTerms(reviews, knowledgeBase, storePendingTerms = []) {
 function buildLocalAnalysis({ reviews, alerts, domainSummary, topicSummary, highRiskSkus, pendingTerms }) {
   const primary = alerts[0] || null;
   const highRiskDomains = domainSummary.filter((item) => item.riskLevel === "high").slice(0, 3);
+  const domainNames = highRiskDomains.map((item) => item.domain).filter(Boolean).join("\u3001");
   return {
     provider: "local-fallback",
     promptVersion: "v3.0",
-    riskTheme: primary?.keyword || highRiskDomains[0]?.domain || "??????",
+    riskTheme: primary?.keyword || highRiskDomains[0]?.domain || "\u672a\u547d\u540d\u98ce\u9669",
     riskLevel: primary?.riskLevel || highRiskDomains[0]?.riskLevel || "low",
     evidenceReviewIds: primary?.evidenceReviewIds || highRiskDomains[0]?.evidenceReviewIds || [],
-    suggestedAction: primary?.expectedAction || FALLBACK_ACTIONS[highRiskDomains[0]?.domain] || "????????????????????",
+    suggestedAction: primary?.expectedAction || FALLBACK_ACTIONS[highRiskDomains[0]?.domain] || "\u5efa\u8bae\u5148\u67e5\u770b\u539f\u59cb\u8bc4\u8bba\u8bc1\u636e\uff0c\u518d\u7531\u54c1\u63a7\u786e\u8ba4\u662f\u5426\u9700\u8981\u7814\u53d1\u6392\u67e5\u3002",
     summary: primary
-      ? `本次共识别 ${alerts.length} 条风险预警，主要集中在 ${highRiskDomains.map((item) => item.domain).join("、") || "未归类问题"}。`
-      : "当前没有生成明显的高风险预警，但仍建议持续观察中差评变化。",
-    domainAnalysis: highRiskDomains.map((item) => ({
-      domain: item.domain,
-      topic: topicSummary.find((topic) => topic.domain === item.domain)?.topic || "",
-      standardKeyword: topicSummary.find((topic) => topic.domain === item.domain)?.standardKeyword || "",
-      riskLevel: item.riskLevel,
-      reason: `该领域在近 7 天内的差评和高风险词频明显上升，共 ${item.badCount} 条差评。`,
-      evidenceReviewIds: item.evidenceReviewIds,
-      expectedAction: FALLBACK_ACTIONS[item.domain] || "继续核查证据链。",
-      suggestedOwner: item.suggestedOwner,
-      shouldEscalateToQC: true,
-      confidence: 0.88,
-    })),
+      ? `\u672c\u6b21\u5171\u8bc6\u522b ${alerts.length} \u6761\u98ce\u9669\u9884\u8b66\uff0c\u4e3b\u8981\u96c6\u4e2d\u5728 ${domainNames || "\u672a\u5f52\u7c7b\u95ee\u9898"}\u3002`
+      : "\u5f53\u524d\u6ca1\u6709\u751f\u6210\u660e\u663e\u7684\u9ad8\u98ce\u9669\u9884\u8b66\uff0c\u4f46\u4ecd\u5efa\u8bae\u6301\u7eed\u89c2\u5bdf\u4e2d\u5dee\u8bc4\u53d8\u5316\u3002",
+    domainAnalysis: highRiskDomains.map((item) => {
+      const topic = topicSummary.find((topicItem) => topicItem.domain === item.domain);
+      return {
+        domain: item.domain,
+        topic: topic?.topic || "",
+        standardKeyword: topic?.standardKeyword || "",
+        riskLevel: item.riskLevel,
+        reason: `\u8be5\u9886\u57df\u5728\u8fd1 7 \u5929\u5185\u7684\u5dee\u8bc4\u548c\u9ad8\u98ce\u9669\u8bcd\u9891\u660e\u663e\u4e0a\u5347\uff0c\u5171 ${item.badCount} \u6761\u5dee\u8bc4\u3002`,
+        evidenceReviewIds: item.evidenceReviewIds,
+        expectedAction: FALLBACK_ACTIONS[item.domain] || "\u7ee7\u7eed\u6838\u67e5\u8bc1\u636e\u94fe\u3002",
+        suggestedOwner: item.suggestedOwner,
+        shouldEscalateToQC: true,
+        confidence: 0.88,
+      };
+    }),
     pendingTerms: pendingTerms.slice(0, 8),
     qcRecommendations: alerts.slice(0, 5).map((alert) => ({
       title: `${alert.keyword} / ${alert.skuName}`,
@@ -916,8 +970,8 @@ function buildLocalAnalysis({ reviews, alerts, domainSummary, topicSummary, high
       riskLevel: alert.riskLevel,
     })),
     rdRecommendations: domainSummary.slice(0, 5).map((item) => ({
-      title: `${item.domain} 研发排查`,
-      action: FALLBACK_ACTIONS[item.domain] || "核对批次、配方和仓配。",
+      title: `${item.domain} \u7814\u53d1\u6392\u67e5`,
+      action: FALLBACK_ACTIONS[item.domain] || "\u6838\u5bf9\u6279\u6b21\u3001\u914d\u65b9\u548c\u4ed3\u914d\u3002",
       evidenceReviewIds: item.evidenceReviewIds,
       owner: item.suggestedOwner,
       riskLevel: item.riskLevel,
@@ -936,9 +990,9 @@ function buildLocalAnalysis({ reviews, alerts, domainSummary, topicSummary, high
       safetyCompliance: 100,
     },
     highRiskSkus: highRiskSkus.slice(0, 5),
+    modelBoundary: "AI only provides attribution assistance, evidence organization, and investigation suggestions; final quality judgment belongs to QC and R&D.",
   };
 }
-
 async function analyzeReviews({ store, reviews, knowledgeBase, useRemote = true }) {
   const fallback = buildLocalAnalysis({
     reviews,

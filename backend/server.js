@@ -28,7 +28,7 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 204, {}, {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
       });
       return;
     }
@@ -47,7 +47,7 @@ const server = http.createServer(async (req, res) => {
 
     serveStatic(res, url.pathname);
   } catch (error) {
-    sendJson(res, 500, { error: error.message || "Internal server error" });
+    sendJson(res, error.statusCode || 500, { success: false, error: error.message || "Internal server error" });
   }
 });
 

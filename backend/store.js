@@ -10,7 +10,7 @@ const PACKAGED_DB_PATH = path.join(PACKAGED_DATA_DIR, "store.json");
 let PACKAGED_STORE_DATA = null;
 
 try {
-  // 让 Vercel / 打包环境也能静态包含默认数据，避免运行时文件缺失后回退乱码。
+  // Keep packaged defaults available in Vercel and bundled runtimes.
   PACKAGED_STORE_DATA = require("./data/store.json");
 } catch {
   PACKAGED_STORE_DATA = null;
@@ -22,13 +22,12 @@ let supabaseClient = null;
 let supabaseChecked = false;
 
 const defaultSkus = [
-  { id: "sku-beef-10kg", name: "麦富迪 牛肉双拼全价狗粮 10kg", jdSkuId: "100203375295", series: "成犬双拼粮", url: "https://item.jd.com/100203375295.html?pcdk=0WLtZV5GWwYatWDp261mhJ-Np8Zf306ShJ_vZiA3TKA=.M8AW.sbc1", status: "active" },
-  { id: "sku-chicken-5kg", name: "麦富迪 鸡肉冻干双拼狗粮 5kg", jdSkuId: "100266064124", series: "成犬双拼粮", url: "https://item.jd.com/100266064124.html?pcdk=0WLtZV5GWwYatWDp261mhObYQwnKfixZ_TY2z8ld_oM=.M8AW.sbc1", status: "active" },
-  { id: "sku-puppy-2kg", name: "麦富迪 幼犬羊奶益生菌狗粮 2kg", jdSkuId: "100212205028", series: "幼犬粮", url: "https://item.jd.com/100212205028.html?pcdk=0WLtZV5GWwYatWDp261mhDWtBpdYzG9PtefZMdbOY_s=.M8AW.sbc1", status: "active" },
-  { id: "sku-salmon-6kg", name: "麦富迪 三文鱼低敏全价狗粮 6kg", jdSkuId: "100071138925", series: "低敏配方粮", url: "https://item.jd.com/100071138925.html?pcdk=vrwQBhwykrNCS1jM0WDTQA9V9MvqwZ4yhI7l3lD09wE=.M8AW.sbc1", status: "active" },
-  { id: "sku-small-3kg", name: "麦富迪 小型犬鲜肉狗粮 3kg", jdSkuId: "100017769428", series: "小型犬粮", url: "https://item.jd.com/100017769428.html?pcdk=vrwQBhwykrNCS1jM0WDTQCHz1cNSHyNy5okj5tG0HTk=.M8AW.sbc1", status: "active" },
+  { id: "sku-beef-10kg", name: "\u9ea6\u5bcc\u8fea \u725b\u8089\u53cc\u62fc\u5168\u4ef7\u72d7\u7cae 10kg", jdSkuId: "100203375295", series: "\u6210\u72ac\u53cc\u62fc\u7cae", url: "https://item.jd.com/100203375295.html?pcdk=0WLtZV5GWwYatWDp261mhJ-Np8Zf306ShJ_vZiA3TKA=.M8AW.sbc1", status: "active" },
+  { id: "sku-chicken-5kg", name: "\u9ea6\u5bcc\u8fea \u9e21\u8089\u51bb\u5e72\u53cc\u62fc\u72d7\u7cae 5kg", jdSkuId: "100266064124", series: "\u6210\u72ac\u53cc\u62fc\u7cae", url: "https://item.jd.com/100266064124.html?pcdk=0WLtZV5GWwYatWDp261mhObYQwnKfixZ_TY2z8ld_oM=.M8AW.sbc1", status: "active" },
+  { id: "sku-puppy-2kg", name: "\u9ea6\u5bcc\u8fea \u5e7c\u72ac\u7f8a\u5976\u76ca\u751f\u83cc\u72d7\u7cae 2kg", jdSkuId: "100212205028", series: "\u5e7c\u72ac\u7cae", url: "https://item.jd.com/100212205028.html?pcdk=0WLtZV5GWwYatWDp261mhDWtBpdYzG9PtefZMdbOY_s=.M8AW.sbc1", status: "active" },
+  { id: "sku-salmon-6kg", name: "\u9ea6\u5bcc\u8fea \u4e09\u6587\u9c7c\u4f4e\u654f\u5168\u4ef7\u72d7\u7cae 6kg", jdSkuId: "100071138925", series: "\u4f4e\u654f\u914d\u65b9\u7cae", url: "https://item.jd.com/100071138925.html?pcdk=vrwQBhwykrNCS1jM0WDTQA9V9MvqwZ4yhI7l3lD09wE=.M8AW.sbc1", status: "active" },
+  { id: "sku-small-3kg", name: "\u9ea6\u5bcc\u8fea \u5c0f\u578b\u72ac\u9c9c\u8089\u72d7\u7cae 3kg", jdSkuId: "100017769428", series: "\u5c0f\u578b\u72ac\u7cae", url: "https://item.jd.com/100017769428.html?pcdk=vrwQBhwykrNCS1jM0WDTQCHz1cNSHyNy5okj5tG0HTk=.M8AW.sbc1", status: "active" },
 ];
-
 function nowIso() {
   return new Date().toISOString();
 }
@@ -54,7 +53,7 @@ function buildDefaultStore() {
     prompts: [
       {
         id: "prompt-v3-core",
-        name: "VOC 风险归因 Prompt",
+        name: "VOC \u98ce\u9669\u5f52\u56e0 Prompt",
         version: "v3.0",
         updatedAt: today(),
       },
@@ -69,20 +68,20 @@ function buildDefaultStore() {
 function buildSeedReviews(skus) {
   const templates = {
     good: [
-      "狗狗很爱吃，颗粒大小合适，换粮过程顺利。",
-      "包装完整，日期新鲜，回购体验不错。",
-      "适口性很好，便便正常，作为日常口粮很合适。",
+      "\u72d7\u72d7\u5f88\u7231\u5403\uff0c\u9897\u7c92\u5927\u5c0f\u5408\u9002\uff0c\u6362\u7cae\u8fc7\u7a0b\u987a\u5229\u3002",
+      "\u5305\u88c5\u5b8c\u6574\uff0c\u65e5\u671f\u65b0\u9c9c\uff0c\u56de\u8d2d\u4f53\u9a8c\u4e0d\u9519\u3002",
+      "\u9002\u53e3\u6027\u5f88\u597d\uff0c\u4fbf\u4fbf\u6b63\u5e38\uff0c\u4f5c\u4e3a\u65e5\u5e38\u53e3\u7cae\u5f88\u5408\u9002\u3002",
     ],
     neutral: [
-      "物流一般，包装有轻微压痕，但商品本身没问题。",
-      "颗粒略大，适合中大型犬，小型犬吃起来稍慢。",
-      "活动价还可以，最近价格波动有点明显。",
+      "\u7269\u6d41\u4e00\u822c\uff0c\u5305\u88c5\u6709\u8f7b\u5fae\u538b\u75d5\uff0c\u4f46\u5546\u54c1\u672c\u8eab\u6ca1\u95ee\u9898\u3002",
+      "\u9897\u7c92\u7565\u5927\uff0c\u9002\u5408\u4e2d\u5927\u578b\u72ac\uff0c\u5c0f\u578b\u72ac\u5403\u8d77\u6765\u7a0d\u6162\u3002",
+      "\u6d3b\u52a8\u4ef7\u8fd8\u53ef\u4ee5\uff0c\u6700\u8fd1\u4ef7\u683c\u6ce2\u52a8\u6709\u70b9\u660e\u663e\u3002",
     ],
     bad: [
-      "最近这款狗粮狗不吃，打开后有异味明显。",
-      "换粮后出现拉稀和软便，怀疑不适配。",
-      "包装破损且封口松，客服回复比较慢。",
-      "颗粒太大，狗狗咬不动，吃了还呕吐。",
+      "\u6700\u8fd1\u8fd9\u6b3e\u72d7\u7cae\u72d7\u4e0d\u5403\uff0c\u6253\u5f00\u540e\u6709\u5f02\u5473\u660e\u663e\u3002",
+      "\u6362\u7cae\u540e\u51fa\u73b0\u62c9\u7a00\u548c\u8f6f\u4fbf\uff0c\u6000\u7591\u4e0d\u9002\u914d\u3002",
+      "\u5305\u88c5\u7834\u635f\u4e14\u5c01\u53e3\u677e\uff0c\u5ba2\u670d\u56de\u590d\u6bd4\u8f83\u6162\u3002",
+      "\u9897\u7c92\u592a\u5927\uff0c\u72d7\u72d7\u54ac\u4e0d\u52a8\uff0c\u5403\u4e86\u8fd8\u5455\u5410\u3002",
     ],
   };
 
@@ -108,7 +107,7 @@ function buildSeedReviews(skus) {
           ratingType,
           date: dateValue,
           crawledAt: nowIso(),
-          user: `用户${String(1000 + skuIndex * 100 + dayOffset * 10 + i).slice(-4)}`,
+          user: `\u7528\u6237${String(1000 + skuIndex * 100 + dayOffset * 10 + i).slice(-4)}`,
           source: "seed",
           reviewUrl: `${sku.url}#comment-${sku.id}-${dateValue}-${i}`,
           productUrl: sku.url,
@@ -127,13 +126,17 @@ function normalizeSkus(skus) {
           const fallback = defaultsById.get(String(sku.id || "").trim());
           const name = String(sku.name || "").trim();
           const series = String(sku.series || "").trim();
+          const url = String(sku.url || sku.jdUrl || "").trim();
+          const status = sku.status === "inactive" || sku.enabled === false ? "inactive" : "active";
           return {
             id: String(sku.id || "").trim(),
             name: isCorruptedLabel(name) ? fallback?.name || name : name,
             jdSkuId: String(sku.jdSkuId || "").trim(),
             series: isCorruptedLabel(series) ? fallback?.series || series : series,
-            url: String(sku.url || "").trim(),
-            status: sku.status === "inactive" ? "inactive" : "active",
+            url,
+            jdUrl: url,
+            status,
+            enabled: status !== "inactive",
             createdAt: sku.createdAt || today(),
             updatedAt: sku.updatedAt || today(),
           };
@@ -158,7 +161,7 @@ function normalizeReview(review) {
     ratingType,
     date: normalizeDate(review.date || review.createdAt || review.creationTime),
     crawledAt: review.crawledAt || nowIso(),
-    user: String(review.user || review.nickname || "鍖垮悕鐢ㄦ埛").trim(),
+    user: String(review.user || review.nickname || "\u533f\u540d\u7528\u6237").trim(),
     source: String(review.source || "imported").trim(),
     productUrl: String(review.productUrl || review.url || "").trim(),
     reviewUrl: String(review.reviewUrl || "").trim(),
@@ -343,6 +346,58 @@ async function updateSkusAsync(nextSkus) {
   return store;
 }
 
+async function updateSkuAsync(id, patch = {}) {
+  const skuId = String(id || "").trim();
+  if (!skuId) throw new Error("SKU id is required");
+
+  const store = await readStoreAsync();
+  const index = store.skus.findIndex((sku) => sku.id === skuId);
+  if (index < 0) {
+    const error = new Error("SKU not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const current = store.skus[index];
+  const nextSku = {
+    ...current,
+    ...patch,
+    id: current.id,
+    name: patch.name ?? current.name,
+    jdSkuId: patch.jdSkuId ?? current.jdSkuId,
+    series: patch.series ?? current.series,
+    url: patch.url ?? patch.jdUrl ?? current.url,
+    status: patch.enabled === false ? "inactive" : patch.status ?? (patch.enabled === true ? "active" : current.status),
+    createdAt: current.createdAt,
+    updatedAt: nowIso(),
+  };
+
+  const nextSkus = store.skus.slice();
+  nextSkus[index] = nextSku;
+  store.skus = normalizeSkus(nextSkus);
+  store.updatedAt = nowIso();
+  await writeStoreAsync(store);
+  return store;
+}
+
+async function deleteSkuAsync(id) {
+  const skuId = String(id || "").trim();
+  if (!skuId) throw new Error("SKU id is required");
+
+  const store = await readStoreAsync();
+  const exists = store.skus.some((sku) => sku.id === skuId);
+  if (!exists) {
+    const error = new Error("SKU not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  store.skus = normalizeSkus(store.skus.filter((sku) => sku.id !== skuId));
+  store.updatedAt = nowIso();
+  await writeStoreAsync(store);
+  return store;
+}
+
 function normalizeRatingType(value) {
   if (value === "good" || value === "neutral" || value === "bad") return value;
   const numeric = Number(value);
@@ -369,7 +424,7 @@ function normalizeDate(value) {
 function isCorruptedLabel(text) {
   const value = String(text || "").trim();
   if (!value) return true;
-  if (value.includes("???")) return true;
+  if (value.includes("\u003f\u003f\u003f")) return true;
   const letters = value.replace(/[\s\d./_-]/g, "");
   return /^[?]+$/.test(letters);
 }
@@ -389,7 +444,9 @@ module.exports = {
   normalizeStore,
   readStore,
   readStoreAsync,
+  deleteSkuAsync,
   updateSkus,
+  updateSkuAsync,
   updateSkusAsync,
   writeStore,
   writeStoreAsync,

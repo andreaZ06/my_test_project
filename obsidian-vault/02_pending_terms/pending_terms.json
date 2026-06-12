@@ -1,6 +1,6 @@
 {
   "source": "obsidian-vault",
-  "updatedAt": "2026-06-11T14:34:36.279Z",
+  "updatedAt": "2026-06-12T14:04:32.468Z",
   "pendingTerms": [
     {
       "id": "pending-打开有异味",
@@ -108,6 +108,96 @@
       ],
       "status": "pending",
       "createdAt": "2026-06-11T14:34:36.272Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-打开后异味明显",
+      "rawTerm": "打开后异味明显",
+      "suggestedKeyword": "打开后异味明显",
+      "suggestedDomain": "质量疑虑",
+      "suggestedTopic": "待审核",
+      "reason": "该表达在差评中出现 5 次，建议人工审核后再纳入正式知识库。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781273072327-0",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781273072368-3",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781273072395-2",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781273072422-1",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781273072445-0"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-12T14:04:32.460Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-客服回复也比较慢",
+      "rawTerm": "客服回复也比较慢",
+      "suggestedKeyword": "客服回复也比较慢",
+      "suggestedDomain": "客服体验",
+      "suggestedTopic": "客服响应慢",
+      "reason": "该表达在差评中出现 5 次，建议人工审核后再纳入正式知识库。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781273072327-0",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781273072368-3",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781273072395-2",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781273072422-1",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781273072445-0"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-12T14:04:32.460Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-怀疑换粮不适",
+      "rawTerm": "怀疑换粮不适",
+      "suggestedKeyword": "怀疑换粮不适",
+      "suggestedDomain": "质量疑虑",
+      "suggestedTopic": "待审核",
+      "reason": "该表达在差评中出现 5 次，建议人工审核后再纳入正式知识库。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781273072331-1",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781273072358-0",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781273072401-3",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781273072424-2",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781273072448-1"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-12T14:04:32.460Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-不太敢继续喂",
+      "rawTerm": "不太敢继续喂",
+      "suggestedKeyword": "不太敢继续喂",
+      "suggestedDomain": "质量疑虑",
+      "suggestedTopic": "待审核",
+      "reason": "该表达在差评中出现 5 次，建议人工审核后再纳入正式知识库。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781273072335-2",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781273072361-1",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781273072390-0",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781273072427-3",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781273072451-2"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-12T14:04:32.460Z",
+      "source": "voc-system"
+    },
+    {
+      "id": "pending-吃了还呕吐了一次",
+      "rawTerm": "吃了还呕吐了一次",
+      "suggestedKeyword": "吃了还呕吐了一次",
+      "suggestedDomain": "肠胃反应",
+      "suggestedTopic": "待审核",
+      "reason": "该表达在差评中出现 5 次，建议人工审核后再纳入正式知识库。",
+      "evidenceReviewIds": [
+        "jd-sku-beef-10kg-fallback-sku-beef-10kg-bad-1781273072337-3",
+        "jd-sku-chicken-5kg-fallback-sku-chicken-5kg-bad-1781273072363-2",
+        "jd-sku-puppy-2kg-fallback-sku-puppy-2kg-bad-1781273072392-1",
+        "jd-sku-salmon-6kg-fallback-sku-salmon-6kg-bad-1781273072419-0",
+        "jd-sku-small-3kg-fallback-sku-small-3kg-bad-1781273072454-3"
+      ],
+      "status": "pending",
+      "createdAt": "2026-06-12T14:04:32.460Z",
       "source": "voc-system"
     }
   ]

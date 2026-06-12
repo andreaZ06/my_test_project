@@ -1,19 +1,20 @@
-const { handleApiRequest } = require("../backend/voc-core");
+const { handleApiRequest } = require("../../backend/voc-core");
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "PUT, DELETE, OPTIONS");
     res.status(204).end();
     return;
   }
 
   try {
     const body = await readBody(req);
+    const id = Array.isArray(req.query?.id) ? req.query.id[0] : req.query?.id;
     const result = await handleApiRequest({
       method: req.method || "GET",
-      pathname: req.url ? new URL(req.url, `http://${req.headers.host}`).pathname : "/api",
+      pathname: `/api/skus/${encodeURIComponent(id || "")}`,
       query: req.query || {},
       body,
     });
