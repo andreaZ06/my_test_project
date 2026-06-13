@@ -966,7 +966,7 @@ function dashboardToday() {
 }
 
 function growthLabel(value) {
-  if (value >= 900) return "鏂板楂樺彂";
+  if (value >= 900) return "\u65b0\u589e\u9ad8\u53d1";
   if (value > 0) return `+${value}%`;
   return `${value}%`;
 }

@@ -693,7 +693,7 @@ function summarizeSkus(reviews, skus, alerts) {
     const recentTotal = skuReviews.filter((review) => daysBetween(review.date, today()) <= 7).length;
     const previousBad = skuReviews.filter((review) => review.ratingType === "bad" && daysBetween(review.date, today()) > 7 && daysBetween(review.date, today()) <= 14).length;
     const growth = percentageGrowth(recentBad, previousBad);
-    const primaryAlert = skuAlerts[0] || null;
+    const primaryAlert = skuAlerts.find((alert) => Number(alert.badCount || 0) > 0) || skuAlerts[0] || null;
     const score = highAlertCount * 100 + recentBad * 8 + badCount * 2 + Math.max(growth, 0);
 
     return {
@@ -710,12 +710,12 @@ function summarizeSkus(reviews, skus, alerts) {
       riskScore: score,
       alertCount: skuAlerts.length,
       highAlertCount,
-      primaryKeyword: primaryAlert?.keyword || "暂无",
-      primaryDomain: primaryAlert?.domain || "未归类",
+      primaryKeyword: primaryAlert?.keyword || "\u6682\u65e0\u5173\u952e\u8bcd",
+      primaryDomain: primaryAlert?.domain || "\u672a\u5f52\u7c7b",
       riskLevel: primaryAlert?.riskLevel || (highAlertCount > 0 || recentBad > 0 ? "medium" : "low"),
       productUrl: sku.url,
       evidenceReviewIds: primaryAlert?.evidenceReviewIds || [],
-      primaryAction: primaryAlert?.expectedAction || "继续观察",
+      primaryAction: primaryAlert?.expectedAction || "\u7ee7\u7eed\u89c2\u5bdf",
     };
   }).sort((a, b) => b.riskScore - a.riskScore || b.alertCount - a.alertCount);
 }
@@ -784,6 +784,8 @@ function deriveAlerts(reviews, skus) {
     const recent = items.filter((item) => daysBetween(item.date, today()) <= 7);
     const previous = items.filter((item) => daysBetween(item.date, today()) > 7 && daysBetween(item.date, today()) <= 14);
     const currentCount = recent.length;
+    const badCount = items.filter((item) => item.ratingType === "bad").length;
+    const recentBadCount = recent.filter((item) => item.ratingType === "bad").length;
     const previousCount = previous.length;
     const growth = percentageGrowth(currentCount, previousCount);
     const sample = recent[0] || items[0];
@@ -800,6 +802,8 @@ function deriveAlerts(reviews, skus) {
       standardKeyword: sample?.standardKeyword || keyword,
       riskLevel,
       currentCount,
+      badCount,
+      recentBadCount,
       previousCount,
       growth,
       reason: sample?.suggestion || FALLBACK_ACTIONS[domain] || "环比异常上涨，需要重点关注。",
@@ -820,7 +824,7 @@ function deriveAlerts(reviews, skus) {
     });
   }
 
-  return alerts.sort((a, b) => riskRank(b.riskLevel) - riskRank(a.riskLevel) || b.growth - a.growth || b.currentCount - a.currentCount);
+  return alerts.sort((a, b) => riskRank(b.riskLevel) - riskRank(a.riskLevel) || (b.badCount || 0) - (a.badCount || 0) || b.growth - a.growth || b.currentCount - a.currentCount);
 }
 
 function buildEvidenceChains(reviews, alerts) {
@@ -1274,7 +1278,7 @@ function enrichReview(review, skus, knowledgeBase) {
 }
 
 function buildAISummary(domain, topic, standardKeyword, riskLevel) {
-  return `${domain} / ${topic}${standardKeyword ? `（${standardKeyword}）` : ""} / ${riskLevel} 风险`;
+  return `${domain} / ${topic}${standardKeyword ? `\uff08${standardKeyword}\uff09` : ""} / ${riskLevel} \u98ce\u9669`;
 }
 
 function resolveSku(review, skus) {
@@ -1321,30 +1325,40 @@ function inferRiskLevel(ratingType, content, best) {
 }
 
 function inferDomainByRating(ratingType) {
-  if (ratingType === "bad") return "质量疑虑";
-  if (ratingType === "neutral") return "商品信息";
-  return "正向反馈";
+  if (ratingType === "bad") return "\u8d28\u91cf\u7591\u8651";
+  if (ratingType === "neutral") return "\u5546\u54c1\u4fe1\u606f";
+  return "\u6b63\u5411\u53cd\u9988";
 }
 
 function inferTopicByContent(content, ratingType) {
   const text = String(content || "");
-  if (text.includes("拉稀") || text.includes("软便") || text.includes("呕吐")) return "肠胃异常";
-  if (text.includes("不吃") || text.includes("挑食")) return "适口性问题";
-  if (text.includes("包装") || text.includes("漏袋") || text.includes("破损")) return "包装问题";
-  if (text.includes("客服")) return "客服响应";
-  if (ratingType === "good") return "复购推荐";
-  return "待识别主题";
+  if (text.includes("\u62c9\u7a00") || text.includes("\u8f6f\u4fbf") || text.includes("\u8179\u6cfb") || text.includes("\u5455\u5410")) return "\u80a0\u80c3\u5f02\u5e38";
+  if (text.includes("\u4e0d\u5403") || text.includes("\u6311\u98df") || text.includes("\u95fb\u4e86\u5c31\u8d70")) return "\u62d2\u98df\u4e0d\u5403";
+  if (text.includes("\u5305\u88c5") || text.includes("\u6f0f\u888b") || text.includes("\u7834\u635f") || text.includes("\u5c01\u53e3")) return "\u5305\u88c5\u7834\u635f";
+  if (text.includes("\u5ba2\u670d") || text.includes("\u56de\u590d\u6162") || text.includes("\u552e\u540e")) return "\u5ba2\u670d\u54cd\u5e94";
+  if (text.includes("\u9897\u7c92") || text.includes("\u6cb9\u817b") || text.includes("\u9002\u53e3\u6027")) return "\u5546\u54c1\u4f53\u9a8c\u53cd\u9988";
+  if (text.includes("\u8be6\u60c5") || text.includes("SKU") || text.includes("\u547d\u540d") || text.includes("\u5356\u70b9") || text.includes("\u8bef\u5bfc")) return "\u8be6\u60c5\u9875\u4fe1\u606f";
+  if (text.includes("\u4ef7\u683c") || text.includes("\u6d3b\u52a8") || text.includes("\u4ef7\u4fdd")) return "\u4ef7\u683c\u6d3b\u52a8";
+  if (ratingType === "good") return "\u590d\u8d2d\u63a8\u8350";
+  return ratingType === "neutral" ? "\u5546\u54c1\u4fe1\u606f" : "\u5f85\u8bc6\u522b\u4e3b\u9898";
 }
 
 function inferKeyword(content, best) {
   if (best?.standardKeyword) return best.standardKeyword;
   const text = String(content || "");
-  if (text.includes("拉稀")) return "拉稀";
-  if (text.includes("不吃")) return "狗不吃";
-  if (text.includes("包装")) return "包装破损";
-  if (text.includes("异味")) return "异味";
-  if (text.includes("客服")) return "客服慢";
-  return "";
+  if (text.includes("\u62c9\u7a00") || text.includes("\u8179\u6cfb") || text.includes("\u7a9c\u7a00")) return "\u62c9\u7a00";
+  if (text.includes("\u8f6f\u4fbf") || text.includes("\u4fbf\u4fbf\u7a00")) return "\u8f6f\u4fbf";
+  if (text.includes("\u5455\u5410") || text.includes("\u5410\u4e86") || text.includes("\u5e72\u5455")) return "\u5455\u5410";
+  if (text.includes("\u72d7\u4e0d\u5403") || text.includes("\u72d7\u72d7\u4e0d\u5403") || text.includes("\u4e0d\u7231\u5403") || text.includes("\u4e0d\u5403") || text.includes("\u6311\u98df")) return "\u72d7\u4e0d\u5403";
+  if (text.includes("\u5305\u88c5\u7834\u635f") || text.includes("\u7834\u635f") || text.includes("\u7834\u888b") || text.includes("\u6f0f\u888b") || text.includes("\u5c01\u53e3")) return "\u5305\u88c5\u7834\u635f";
+  if (text.includes("\u5f02\u5473") || text.includes("\u5473\u9053\u602a") || text.includes("\u53d1\u9709") || text.includes("\u53d8\u8d28")) return "\u5f02\u5473";
+  if (text.includes("\u5ba2\u670d") || text.includes("\u56de\u590d\u6162") || text.includes("\u552e\u540e")) return "\u5ba2\u670d\u6162";
+  if (text.includes("\u9897\u7c92") || text.includes("\u6709\u70b9\u5927") || text.includes("\u592a\u5927")) return "\u9897\u7c92\u504f\u5927";
+  if (text.includes("\u6cb9\u817b") || text.includes("\u6cb9\u817b\u611f")) return "\u6cb9\u817b\u611f";
+  if (text.includes("\u9002\u53e3\u6027\u4e00\u822c") || text.includes("\u5403\u5f97\u4e0d\u7b97\u79ef\u6781")) return "\u9002\u53e3\u6027\u4e00\u822c";
+  if (text.includes("\u8be6\u60c5") || text.includes("SKU") || text.includes("\u547d\u540d") || text.includes("\u5356\u70b9") || text.includes("\u8bef\u5bfc")) return "\u8be6\u60c5\u9875\u8bef\u5bfc";
+  if (text.includes("\u4ef7\u683c") || text.includes("\u6d3b\u52a8") || text.includes("\u4ef7\u4fdd")) return "\u4ef7\u683c\u6d3b\u52a8";
+  return "\u5b9e\u65f6\u8bc4\u8bba\u98ce\u9669";
 }
 
 function inferDomainFromTerm(term) {
